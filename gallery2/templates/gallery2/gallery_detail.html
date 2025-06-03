@@ -1,0 +1,17 @@
+{% extends "gallery2/base.html" %}
+
+{% block content %}
+<div class="container">
+  <h1>Gallery Detail</h1>
+
+  <div class="card mb-3">
+    <div class="card-body">
+      <h2 class="card-title">{{ gallery.name }}</h2>
+    </div>
+  </div>
+
+  <div class="mb-3">
+    <a href="{% url 'gallery2:gallery_list' %}" class="btn btn-secondary">Back to Galleries</a>
+  </div>
+</div>
+{% endblock %}

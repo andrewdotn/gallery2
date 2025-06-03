@@ -1,5 +1,5 @@
 from django.urls import reverse_lazy
-from django.views.generic import ListView, CreateView
+from django.views.generic import ListView, CreateView, DetailView
 
 from .models import Gallery
 
@@ -7,6 +7,11 @@ from .models import Gallery
 class GalleryListView(ListView):
     model = Gallery
     context_object_name = "galleries"
+
+
+class GalleryDetailView(DetailView):
+    model = Gallery
+    context_object_name = "gallery"
 
 
 class GalleryCreateView(CreateView):

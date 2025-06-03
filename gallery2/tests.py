@@ -44,3 +44,17 @@ def test_gallery_create_view_post_invalid(db, client):
     assert response.status_code == 200
     assert response.context["form"].errors
     assert not Gallery.objects.filter(name="").exists()
+
+
+def test_gallery_detail_view(db, client):
+    gallery = Gallery.objects.create(name="Test Gallery Detail")
+
+    response = client.get(reverse("gallery2:gallery_detail", kwargs={"pk": gallery.pk}))
+
+    assert response.status_code == 200
+    assert "gallery2/gallery_detail.html" in [t.name for t in response.templates]
+
+    assert "gallery" in response.context
+    assert response.context["gallery"] == gallery
+
+    assert gallery.name in response.text

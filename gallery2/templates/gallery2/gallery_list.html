@@ -11,9 +11,9 @@
   {% if galleries %}
     <div class="list-group">
       {% for gallery in galleries %}
-        <div class="list-group-item">
+        <a href="{% url 'gallery2:gallery_detail' gallery.pk %}" class="list-group-item list-group-item-action">
           <h5>{{ gallery.name }}</h5>
-        </div>
+        </a>
       {% endfor %}
     </div>
   {% else %}
