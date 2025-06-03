@@ -8,6 +8,7 @@ from django.views.decorators.http import require_http_methods
 from django.views.generic import ListView, CreateView, DetailView
 
 from .models import Gallery, Entry
+from .templatetags.gallery_extras import markdown_to_html
 from .thumbnails import (
     get_thumbnail_extractor,
     ImageThumbnailExtractor,
@@ -116,13 +117,14 @@ def edit_caption(request, entry_id):
         entry.caption = data["caption"]
         entry.save()
 
-        # Return the updated entry data
+        # Return the updated entry data with HTML-rendered caption
         return JsonResponse(
             {
                 "id": entry.id,
                 "gallery_id": entry.gallery_id,
                 "basename": entry.basename,
                 "caption": entry.caption,
+                "html_caption": markdown_to_html(entry.caption),
                 "order": entry.order,
                 "timestamp": entry.timestamp.isoformat() if entry.timestamp else None,
             }

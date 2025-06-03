@@ -16,7 +16,7 @@ urlpatterns = [
         name="entry_thumbnail_with_size",
     ),
     path(
-        "entry/<int:entry_id>/edit-caption/",
+        "entry/<int:entry_id>/edit-caption",
         views.edit_caption,
         name="entry_edit_caption",
     ),
