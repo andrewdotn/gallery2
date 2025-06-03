@@ -256,6 +256,73 @@ def test_import_images_invalid_gallery(mock_path, db):
         call_command("import_images", "/fake/path", non_existent_id)
 
 
+@mock.patch("pathlib.Path")
+def test_import_images_timestamp_ordering(mock_path, db):
+    """Test that images are ordered by timestamp."""
+    gallery = Gallery.objects.create(name="Test Timestamp Ordering Gallery")
+
+    mock_dir = mock.MagicMock()
+    mock_dir.exists.return_value = True
+    mock_dir.is_dir.return_value = True
+
+    # Create three mock image files
+    mock_file1 = mock.MagicMock()
+    mock_file1.stem = "image1"
+    mock_file1.name = "image1.jpg"
+    mock_file1.suffix = ".jpg"
+    mock_file1.is_file.return_value = True
+
+    mock_file2 = mock.MagicMock()
+    mock_file2.stem = "image2"
+    mock_file2.name = "image2.jpg"
+    mock_file2.suffix = ".jpg"
+    mock_file2.is_file.return_value = True
+
+    mock_file3 = mock.MagicMock()
+    mock_file3.stem = "image3"
+    mock_file3.name = "image3.jpg"
+    mock_file3.suffix = ".jpg"
+    mock_file3.is_file.return_value = True
+
+    mock_dir.iterdir.return_value = [mock_file1, mock_file2, mock_file3]
+    mock_path.return_value = mock_dir
+
+    # Create three different timestamps
+    timestamp1 = timezone.make_aware(datetime(2023, 1, 1, 12, 0, 0))  # Earliest
+    timestamp2 = timezone.make_aware(datetime(2023, 1, 2, 12, 0, 0))  # Middle
+    timestamp3 = timezone.make_aware(datetime(2023, 1, 3, 12, 0, 0))  # Latest
+
+    # Mock extract_timestamp to return different timestamps for each file
+    with mock.patch(
+        "gallery2.management.commands.import_images.Command.extract_timestamp"
+    ) as mock_extract:
+        # Return timestamps in non-chronological order to test sorting
+        mock_extract.side_effect = [timestamp2, timestamp3, timestamp1]
+
+        # Call the command with a starting order of 10.0
+        call_command("import_images", "/fake/path", gallery.id, "--order", "10.0")
+
+    # Get entries sorted by basename
+    entries = Entry.objects.filter(gallery=gallery).order_by("basename")
+    assert entries.count() == 3
+
+    # Create a mapping of basename to entry for easier testing
+    entry_map = {entry.basename: entry for entry in entries}
+
+    # Verify timestamps are set correctly
+    assert entry_map["image1"].timestamp == timestamp2
+    assert entry_map["image2"].timestamp == timestamp3
+    assert entry_map["image3"].timestamp == timestamp1
+
+    # Verify order values are assigned based on timestamp order (not basename order)
+    # image3 has earliest timestamp, so it should have order=10.0
+    # image1 has middle timestamp, so it should have order=11.0
+    # image2 has latest timestamp, so it should have order=12.0
+    assert entry_map["image3"].order == 10.0  # Earliest timestamp
+    assert entry_map["image1"].order == 11.0  # Middle timestamp
+    assert entry_map["image2"].order == 12.0  # Latest timestamp
+
+
 # Tests for thumbnail view
 @mock.patch("gallery2.views.get_thumbnail_extractor")
 @mock.patch("pathlib.Path.exists", return_value=True)

@@ -3,10 +3,9 @@ import pathlib
 import re
 from datetime import datetime
 
+from PIL import Image, ExifTags
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
-from PIL import Image, UnidentifiedImageError, ExifTags
-from pillow_heif import HeifImagePlugin
 
 from gallery2.models import Entry, Gallery
 
@@ -66,46 +65,61 @@ class Command(BaseCommand):
 
         self.stdout.write(f"Found {len(basename_groups)} unique images")
 
-        order_value = order_start
         created_count = 0
         skipped_count = 0
+        entries_to_create = []
 
-        with transaction.atomic():
-            for basename, files in basename_groups.items():
-                if Entry.objects.filter(gallery=gallery, basename=basename).exists():
-                    self.stdout.write(f"Skipping '{basename}' - already exists")
-                    skipped_count += 1
-                    continue
+        # First pass: collect all entries to create with their timestamps
+        for basename, files in basename_groups.items():
+            if Entry.objects.filter(gallery=gallery, basename=basename).exists():
+                self.stdout.write(f"Skipping '{basename}' - already exists")
+                skipped_count += 1
+                continue
 
-                timestamp = None
-                for file_path in files:
-                    if file_path.suffix.lower() in (".jpg", ".jpeg", ".png", ".heic"):
-                        try:
-                            timestamp = self.extract_timestamp(file_path)
-                            if timestamp:
-                                break
-                        except Exception as e:
-                            self.stdout.write(
-                                self.style.WARNING(
-                                    f"Could not extract timestamp from '{file_path.name}': {e}"
-                                )
+            timestamp = None
+            for file_path in files:
+                if file_path.suffix.lower() in (".jpg", ".jpeg", ".png", ".heic"):
+                    try:
+                        timestamp = self.extract_timestamp(file_path)
+                        if timestamp:
+                            break
+                    except Exception as e:
+                        self.stdout.write(
+                            self.style.WARNING(
+                                f"Could not extract timestamp from '{file_path.name}': {e}"
                             )
+                        )
+            filenames_list = [file.name for file in files]
 
-                # Store all filenames in a list
-                filenames_list = [file.name for file in files]
+            entries_to_create.append(
+                {
+                    "basename": basename,
+                    "filenames": filenames_list,
+                    "timestamp": timestamp,
+                    "files": files,
+                }
+            )
+
+        entries_to_create.sort(
+            key=lambda x: x["timestamp"] if x["timestamp"] else str(datetime.max)
+        )
+
+        # Second pass: create entries with order values based on sorted timestamps
+        with transaction.atomic():
+            for i, entry_data in enumerate(entries_to_create):
+                order_value = order_start + i
 
                 Entry.objects.create(
                     gallery=gallery,
-                    basename=basename,
-                    filenames=filenames_list,
+                    basename=entry_data["basename"],
+                    filenames=entry_data["filenames"],
                     order=order_value,
                     caption="",
-                    timestamp=timestamp,
+                    timestamp=entry_data["timestamp"],
                 )
 
-                self.stdout.write(f"Created entry for '{basename}'")
+                self.stdout.write(f"Created entry for '{entry_data['basename']}'")
                 created_count += 1
-                order_value += 1.0
 
         self.stdout.write(
             self.style.SUCCESS(
