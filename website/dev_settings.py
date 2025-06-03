@@ -3,7 +3,7 @@ from .util import insert_app_after_django_apps
 
 DEBUG = True
 
-FRONTEND_VITE_PORT = 3000
+FRONTEND_VITE_PORT = 3231
 
 ## Database
 

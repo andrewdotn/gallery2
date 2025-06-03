@@ -30,12 +30,15 @@ class CssAndJsParser(HTMLParser):
 # Could also check timestamps to determine if should re-read
 @cache
 def determine_build_asset_names():
-    index_html = (settings.FRONTEND_DIST_DIR / "index.html").read_text()
+    if hasattr(settings, "FRONTEND_DIST_DIR"):
+        index_html = (settings.FRONTEND_DIST_DIR / "index.html").read_text()
 
-    parser = CssAndJsParser()
-    parser.feed(index_html)
+        parser = CssAndJsParser()
+        parser.feed(index_html)
 
-    return {"css": parser.css_links, "js": parser.js_links}
+        return {"css": parser.css_links, "js": parser.js_links}
+    else:
+        return {"css": [], "js": []}
 
 
 @register.simple_tag()

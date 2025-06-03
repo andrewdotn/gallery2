@@ -20,12 +20,14 @@ from django.urls import path, include
 from django.conf import settings
 
 import polls.urls
+import gallery2.urls
 from . import views
 
 urlpatterns = [
     # URLs go here
     path("admin/", admin.site.urls),
     path("polls/", include(polls.urls, namespace="polls")),
+    path("gallery/", include(gallery2.urls, namespace="gallery2")),
     path("", views.make_redirect_view("polls/")),
     *(
         [path("__debug__", include("debug_toolbar.urls"))]

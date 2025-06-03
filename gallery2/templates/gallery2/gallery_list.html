@@ -1,0 +1,23 @@
+{% extends "gallery2/base.html" %}
+
+{% block content %}
+<div class="container">
+  <h1>Galleries</h1>
+
+  <div class="mb-3">
+    <a href="{% url 'gallery2:gallery_create' %}" class="btn btn-primary">Create New Gallery</a>
+  </div>
+
+  {% if galleries %}
+    <div class="list-group">
+      {% for gallery in galleries %}
+        <div class="list-group-item">
+          <h5>{{ gallery.name }}</h5>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p>No galleries available.</p>
+  {% endif %}
+</div>
+{% endblock %}
