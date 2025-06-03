@@ -16,7 +16,7 @@
       {% for entry in entries %}
         <div class="card mb-3">
           <div class="card-body">
-            <h3 class="card-title">{{ entry.filename }}</h3>
+            <h3 class="card-title">{{ entry.basename }}</h3>
             <div class="card-text">{{ entry.caption|markdown_to_html }}</div>
           </div>
         </div>

@@ -58,19 +58,22 @@ def test_gallery_detail_view(db, client):
 
     entry1 = Entry.objects.create(
         gallery=gallery,
-        filename="image1.jpg",
+        basename="image1",
+        filenames=["image1.jpg"],
         order=2.0,
         caption="This is **bold** text",
     )
     entry2 = Entry.objects.create(
         gallery=gallery,
-        filename="image2.jpg",
+        basename="image2",
+        filenames=["image2.jpg"],
         order=1.0,
         caption="This is *italic* text",
     )
     entry3 = Entry.objects.create(
         gallery=gallery,
-        filename="image3.jpg",
+        basename="image3",
+        filenames=["image3.jpg"],
         order=3.0,
         caption="This is a [link](http://example.com)",
     )
@@ -90,9 +93,9 @@ def test_gallery_detail_view(db, client):
 
     assert list(entries) == [entry2, entry1, entry3]
 
-    assert entry1.filename in response.text
-    assert entry2.filename in response.text
-    assert entry3.filename in response.text
+    assert entry1.basename in response.text
+    assert entry2.basename in response.text
+    assert entry3.basename in response.text
 
     # Check markdown is interpreted (HTML tags are generated)
     assert "<strong>bold</strong>" in response.text
@@ -138,8 +141,14 @@ def test_import_images_success(mock_path, db):
     entries = Entry.objects.filter(gallery=gallery)
     assert entries.count() == 2
 
-    filenames = sorted([entry.filename for entry in entries])
-    assert filenames == ["image1.jpg", "image2.png"]
+    basenames = sorted([entry.basename for entry in entries])
+    assert basenames == ["image1", "image2"]
+
+    for entry in entries:
+        if entry.basename == "image1":
+            assert entry.filenames == ["image1.jpg"]
+        elif entry.basename == "image2":
+            assert entry.filenames == ["image2.png"]
 
     for entry in entries:
         assert entry.timestamp == test_datetime
@@ -151,7 +160,11 @@ def test_import_images_skip_existing(mock_path, db):
     gallery = Gallery.objects.create(name="Test Skip Gallery")
 
     Entry.objects.create(
-        gallery=gallery, filename="existing.jpg", order=1.0, caption=""
+        gallery=gallery,
+        basename="existing",
+        filenames=["existing.jpg"],
+        order=1.0,
+        caption="",
     )
 
     mock_dir = mock.MagicMock()
@@ -183,7 +196,7 @@ def test_import_images_skip_existing(mock_path, db):
     entries = Entry.objects.filter(gallery=gallery)
     assert entries.count() == 2
 
-    assert Entry.objects.filter(gallery=gallery, filename="new.jpg").exists()
+    assert Entry.objects.filter(gallery=gallery, basename="new").exists()
 
 
 @mock.patch("pathlib.Path")
@@ -213,8 +226,9 @@ def test_import_images_timestamp_extraction(mock_path, db):
         mock_extract.return_value = test_datetime
         call_command("import_images", "/fake/path", gallery.id)
 
-    entry = Entry.objects.get(gallery=gallery, filename="timestamp_test.jpg")
+    entry = Entry.objects.get(gallery=gallery, basename="timestamp_test")
     assert entry.timestamp == test_datetime
+    assert "timestamp_test.jpg" in entry.filenames
 
 
 @mock.patch("pathlib.Path")

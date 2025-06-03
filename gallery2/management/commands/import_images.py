@@ -67,9 +67,7 @@ class Command(BaseCommand):
 
         with transaction.atomic():
             for basename, files in basename_groups.items():
-                if Entry.objects.filter(
-                    gallery=gallery, filename__startswith=basename
-                ).exists():
+                if Entry.objects.filter(gallery=gallery, basename=basename).exists():
                     self.stdout.write(f"Skipping '{basename}' - already exists")
                     skipped_count += 1
                     continue
@@ -88,19 +86,19 @@ class Command(BaseCommand):
                                 )
                             )
 
-                filename = basename
-                if files:
-                    filename = files[0].name
+                # Store all filenames in a list
+                filenames_list = [file.name for file in files]
 
                 Entry.objects.create(
                     gallery=gallery,
-                    filename=filename,
+                    basename=basename,
+                    filenames=filenames_list,
                     order=order_value,
                     caption="",
                     timestamp=timestamp,
                 )
 
-                self.stdout.write(f"Created entry for '{filename}'")
+                self.stdout.write(f"Created entry for '{basename}'")
                 created_count += 1
                 order_value += 1.0
 

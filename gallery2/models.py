@@ -9,7 +9,8 @@ class Gallery(models.Model):
 
 class Entry(models.Model):
     gallery = models.ForeignKey(Gallery, on_delete=models.CASCADE)
-    filename = models.CharField(max_length=DEFAULT_MAX_LENGTH)
+    basename = models.CharField(max_length=DEFAULT_MAX_LENGTH)
+    filenames = models.JSONField(default=list)
     order = models.FloatField()
     caption = models.TextField()
     timestamp = models.DateTimeField(null=True, blank=True)
