@@ -5,7 +5,7 @@ DEFAULT_MAX_LENGTH = 255
 
 class Gallery(models.Model):
     name = models.TextField()
-    directory = models.CharField(max_length=DEFAULT_MAX_LENGTH)
+    directory = models.CharField(max_length=DEFAULT_MAX_LENGTH, default=".")
 
 
 class Entry(models.Model):

@@ -1,10 +1,12 @@
 import os
 import pathlib
+import re
 from datetime import datetime
 
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
-from PIL import Image, UnidentifiedImageError
+from PIL import Image, UnidentifiedImageError, ExifTags
+from pillow_heif import HeifImagePlugin
 
 from gallery2.models import Entry, Gallery
 
@@ -38,6 +40,9 @@ class Command(BaseCommand):
 
         try:
             gallery = Gallery.objects.get(pk=gallery_id)
+            if gallery.directory is None or gallery.directory == ".":
+                gallery.directory = os.fspath(directory_path)
+                gallery.save()
         except Gallery.DoesNotExist:
             raise CommandError(f"Gallery with ID {gallery_id} does not exist")
 
@@ -110,15 +115,31 @@ class Command(BaseCommand):
 
     def extract_timestamp(self, file_path):
         """Extract timestamp from image EXIF data if available."""
-        try:
-            with Image.open(file_path) as img:
-                exif_data = img.getexif()
-                if exif_data:
-                    # EXIF tag 36867 corresponds to DateTimeOriginal
-                    date_str = exif_data.get(36867)
-                    if date_str:
-                        # EXIF date format: 'YYYY:MM:DD HH:MM:SS'
-                        return datetime.strptime(date_str, "%Y:%m:%d %H:%M:%S")
-                return None
-        except (UnidentifiedImageError, OSError):
-            return None
+
+        with Image.open(file_path) as img:
+            exif_data = img.getexif()
+            if exif_data:
+                data = {ExifTags.TAGS[k]: v for k, v in exif_data.items()}
+                data |= {
+                    ExifTags.TAGS[k]: v
+                    for k, v in exif_data.get_ifd(ExifTags.IFD.Exif).items()
+                }
+                data |= {
+                    ExifTags.GPSTAGS[k]: v
+                    for k, v in exif_data.get_ifd(ExifTags.IFD.GPSInfo).items()
+                }
+
+                dtorig = re.sub(
+                    r"""
+                    (\d{4})
+                    :
+                    (\d{2})
+                    :
+                    (\d{2})
+                    """,
+                    r"\1-\2-\3",
+                    data["DateTimeOriginal"],
+                    flags=re.VERBOSE,
+                )
+
+                return dtorig + " " + data["OffsetTimeOriginal"]
