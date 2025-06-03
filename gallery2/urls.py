@@ -7,4 +7,12 @@ urlpatterns = [
     path("", views.GalleryListView.as_view(), name="gallery_list"),
     path("<int:pk>/", views.GalleryDetailView.as_view(), name="gallery_detail"),
     path("create/", views.GalleryCreateView.as_view(), name="gallery_create"),
+    path(
+        "entry/<int:entry_id>/thumbnail/", views.entry_thumbnail, name="entry_thumbnail"
+    ),
+    path(
+        "entry/<int:entry_id>/thumbnail/<int:size>/",
+        views.entry_thumbnail,
+        name="entry_thumbnail_with_size",
+    ),
 ]

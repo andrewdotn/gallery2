@@ -5,6 +5,8 @@ DEBUG = True
 
 FRONTEND_VITE_PORT = 3231
 
+TEST_RUNNER = "pytest_django.runner.TestRunner"
+
 ## Database
 
 # Database

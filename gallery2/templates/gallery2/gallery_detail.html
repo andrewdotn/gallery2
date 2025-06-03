@@ -3,23 +3,29 @@
 
 {% block content %}
 <div class="container">
-  <h1>Gallery Detail</h1>
-
-  <div class="card mb-3">
-    <div class="card-body">
-      <h2 class="card-title">{{ gallery.name }}</h2>
-    </div>
-  </div>
+  <h1>{{ gallery.name }}</h1>
 
   {% if entries %}
     <div class="gallery-entries">
       {% for entry in entries %}
-        <div class="card mb-3">
-          <div class="card-body">
-            <h3 class="card-title">{{ entry.basename }}</h3>
-            <div class="card-text">{{ entry.caption|markdown_to_html }}</div>
+          <div class="entry-container mb-4">
+            <div class="row">
+              <div class="col-md-9">
+                <img src="{% url 'gallery2:entry_thumbnail' entry.id %}"
+                     alt="{{ entry.basename }}"
+                     class="img-fluid thumbnail"
+                     loading="lazy">
+              </div>
+              <div class="col-md-3">
+                <h3>{{ entry.basename }}</h3>
+                {{ entry.filenames }}
+                {% if entry.timestamp %}
+                  <h4>{{ entry.timestamp }}</h4>
+                {% endif %}
+                <div>{{ entry.caption|markdown_to_html }}</div>
+              </div>
+            </div>
           </div>
-        </div>
       {% endfor %}
     </div>
   {% else %}

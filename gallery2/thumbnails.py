@@ -1,0 +1,153 @@
+"""
+Thumbnail extraction utilities for gallery2 app.
+
+This module provides classes for extracting thumbnails from different types of files.
+"""
+
+import os
+from pathlib import Path
+from typing import List, Optional
+import av
+from PIL import Image, UnidentifiedImageError
+from django.conf import settings
+from django.http import Http404
+
+
+class ThumbnailExtractor:
+    """Base class for thumbnail extractors."""
+
+    def __init__(self, gallery_id: int, entry_id: int, size: int = 500):
+        self.gallery_id = gallery_id
+        self.entry_id = entry_id
+        self.size = size
+        self.thumbnails_dir = Path(settings.MEDIA_ROOT) / "thumbnails"
+        os.makedirs(self.thumbnails_dir, exist_ok=True)
+
+    def get_thumbnail_path(self) -> Path:
+        thumbnail_filename = (
+            f"gallery_{self.gallery_id}_entry_{self.entry_id}_thumb_{self.size}.jpg"
+        )
+        return self.thumbnails_dir / thumbnail_filename
+
+    def thumbnail_exists(self) -> bool:
+        return self.get_thumbnail_path().exists()
+
+    def extract_thumbnail(self, original_path):
+        raise NotImplementedError("Subclasses must implement extract_thumbnail")
+
+
+class ImageThumbnailExtractor(ThumbnailExtractor):
+    """Thumbnail extractor for image files (png, jpeg, heic)."""
+
+    SUPPORTED_EXTENSIONS = [".jpg", ".jpeg", ".png", ".heic"]
+
+    @classmethod
+    def can_handle(cls, filename: str) -> bool:
+        """Check if this extractor can handle the given filename."""
+        ext = Path(filename).suffix.lower()
+        return ext in cls.SUPPORTED_EXTENSIONS
+
+    def extract_thumbnail(self, original_path: Path) -> Path:
+        """
+        Extract a thumbnail from an image file.
+
+        Args:
+            original_path: Path to the original image file
+
+        Returns:
+            Path to the generated thumbnail
+
+        Raises:
+            Http404: If the image cannot be processed
+        """
+        thumbnail_path = self.get_thumbnail_path()
+
+        try:
+            with Image.open(original_path) as img:
+                img.thumbnail((self.size, self.size))
+                img.save(thumbnail_path, "JPEG")
+        except (UnidentifiedImageError, OSError) as e:
+            raise Http404(f"Error processing image: {e}")
+
+        return thumbnail_path
+
+
+class VideoThumbnailExtractor(ThumbnailExtractor):
+    """Thumbnail extractor for video files."""
+
+    SUPPORTED_EXTENSIONS = [".mp4", ".mov", ".avi", ".mkv"]
+
+    @classmethod
+    def can_handle(cls, filename: str) -> bool:
+        """Check if this extractor can handle the given filename."""
+        ext = Path(filename).suffix.lower()
+        return ext in cls.SUPPORTED_EXTENSIONS
+
+    def extract_thumbnail(self, original_path: Path) -> Path:
+        """
+        Extract a thumbnail from a video file.
+
+        Args:
+            original_path: Path to the original video file
+
+        Returns:
+            Path to the generated thumbnail
+
+        Raises:
+            Http404: If the video cannot be processed
+        """
+        thumbnail_path = self.get_thumbnail_path()
+
+        try:
+            container = av.open(str(original_path))
+            video_stream = next(s for s in container.streams if s.type == "video")
+
+            THUMBNAIL_POSITION = 0.1  # 10% in
+            duration = float(container.duration) / av.time_base
+            seek_position = int(duration * THUMBNAIL_POSITION)
+
+            container.seek(seek_position, stream=video_stream)
+
+            for frame in container.decode(video_stream):
+                img = frame.to_image()
+                img.thumbnail((self.size, self.size))
+                img.save(thumbnail_path, "JPEG")
+                break
+            container.close()
+
+        except Exception as e:
+            raise Http404(f"Error processing video: {e}")
+
+        return thumbnail_path
+
+
+def get_thumbnail_extractor(
+    filenames: List[str], gallery_id: int, entry_id: int, size: int = 500
+) -> Optional[ThumbnailExtractor]:
+    """
+    Factory function to get the appropriate thumbnail extractor for the given filenames.
+
+    Args:
+        filenames: List of filenames to check
+        gallery_id: ID of the gallery
+        entry_id: ID of the entry
+        size: Size of the thumbnail
+
+    Returns:
+        An appropriate ThumbnailExtractor instance, or None if no suitable extractor is found
+    """
+    if not filenames:
+        return None
+
+    # Try to find an image file first
+    for filename in filenames:
+        if ImageThumbnailExtractor.can_handle(filename):
+            return ImageThumbnailExtractor(gallery_id, entry_id, size)
+
+    # If no image file is found, try to find a video file
+    for filename in filenames:
+        if VideoThumbnailExtractor.can_handle(filename):
+            return VideoThumbnailExtractor(gallery_id, entry_id, size)
+
+    # If no suitable file is found, return None
+    return None

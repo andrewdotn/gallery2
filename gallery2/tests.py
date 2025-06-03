@@ -3,6 +3,7 @@ from django.urls import reverse
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.utils import timezone
+from django.http import Http404
 from unittest import mock
 import pytest
 from datetime import datetime
@@ -253,3 +254,213 @@ def test_import_images_invalid_gallery(mock_path, db):
         CommandError, match=f"Gallery with ID {non_existent_id} does not exist"
     ):
         call_command("import_images", "/fake/path", non_existent_id)
+
+
+# Tests for thumbnail view
+@mock.patch("gallery2.views.get_thumbnail_extractor")
+@mock.patch("pathlib.Path.exists", return_value=True)
+@mock.patch("gallery2.views.open")
+def test_entry_thumbnail_new(
+    mock_open, mock_path_exists, mock_get_extractor, db, client
+):
+    """Test thumbnail generation when thumbnail doesn't exist."""
+    gallery = Gallery.objects.create(
+        name="Test Thumbnail Gallery", directory="/fake/gallery/path"
+    )
+    entry = Entry.objects.create(
+        gallery=gallery,
+        basename="test_image",
+        filenames=["test_image.jpg"],
+        order=1.0,
+        caption="Test caption",
+    )
+
+    mock_extractor = mock.MagicMock()
+    mock_extractor.thumbnail_exists.return_value = False
+    mock_extractor.get_thumbnail_path.return_value = Path(
+        "/fake/thumbnails/path/thumbnail.jpg"
+    )
+    mock_extractor.extract_thumbnail.return_value = Path(
+        "/fake/thumbnails/path/thumbnail.jpg"
+    )
+    mock_get_extractor.return_value = mock_extractor
+
+    mock_file = mock.MagicMock()
+    mock_open.return_value = mock_file
+
+    with mock.patch("gallery2.views.isinstance", return_value=True):
+        with mock.patch(
+            "gallery2.views.ImageThumbnailExtractor.can_handle", return_value=True
+        ):
+            response = client.get(
+                reverse("gallery2:entry_thumbnail", kwargs={"entry_id": entry.id})
+            )
+
+            assert response.status_code == 200
+            assert response["Content-Type"] == "image/jpeg"
+
+            mock_get_extractor.assert_called_once_with(
+                entry.filenames, gallery.id, entry.id, 800
+            )
+            mock_extractor.thumbnail_exists.assert_called_once()
+            mock_extractor.extract_thumbnail.assert_called_once()
+            mock_open.assert_called_once()
+
+
+@mock.patch("gallery2.views.get_thumbnail_extractor")
+@mock.patch("gallery2.views.open")
+def test_entry_thumbnail_existing(mock_open, mock_get_extractor, db, client):
+    """Test thumbnail serving when thumbnail already exists."""
+    gallery = Gallery.objects.create(
+        name="Test Existing Thumbnail Gallery", directory="/fake/gallery/path"
+    )
+    entry = Entry.objects.create(
+        gallery=gallery,
+        basename="existing_thumb",
+        filenames=["existing_thumb.jpg"],
+        order=1.0,
+        caption="Test caption",
+    )
+
+    mock_extractor = mock.MagicMock()
+    mock_extractor.thumbnail_exists.return_value = True
+    mock_extractor.get_thumbnail_path.return_value = Path(
+        "/fake/thumbnails/path/thumbnail.jpg"
+    )
+    mock_get_extractor.return_value = mock_extractor
+
+    mock_file = mock.MagicMock()
+    mock_open.return_value = mock_file
+
+    response = client.get(
+        reverse("gallery2:entry_thumbnail", kwargs={"entry_id": entry.id})
+    )
+
+    assert response.status_code == 200
+    assert response["Content-Type"] == "image/jpeg"
+
+    # Verify the extractor was used correctly and no thumbnail was created (since it already exists)
+    mock_get_extractor.assert_called_once_with(
+        entry.filenames, gallery.id, entry.id, 800
+    )
+    mock_extractor.thumbnail_exists.assert_called_once()
+    mock_extractor.extract_thumbnail.assert_not_called()
+    mock_open.assert_called_once()
+
+
+@mock.patch("gallery2.views.get_thumbnail_extractor")
+def test_entry_thumbnail_no_files(mock_get_extractor, db, client):
+    """Test error handling when entry has no files."""
+    gallery = Gallery.objects.create(
+        name="Test No Files Gallery", directory="/fake/gallery/path"
+    )
+    entry = Entry.objects.create(
+        gallery=gallery,
+        basename="no_files",
+        filenames=[],  # Empty filenames list
+        order=1.0,
+        caption="Test caption",
+    )
+
+    mock_get_extractor.return_value = None
+
+    response = client.get(
+        reverse("gallery2:entry_thumbnail", kwargs={"entry_id": entry.id})
+    )
+
+    assert response.status_code == 404
+    mock_get_extractor.assert_called_once_with([], gallery.id, entry.id, 800)
+
+
+@mock.patch("gallery2.views.get_thumbnail_extractor")
+@mock.patch("gallery2.views.Path")
+def test_entry_thumbnail_file_not_found(mock_path, mock_get_extractor, db, client):
+    """Test error handling when original file doesn't exist."""
+    gallery = Gallery.objects.create(
+        name="Test File Not Found Gallery", directory="/fake/gallery/path"
+    )
+    entry = Entry.objects.create(
+        gallery=gallery,
+        basename="missing_file",
+        filenames=["missing_file.jpg"],
+        order=1.0,
+        caption="Test caption",
+    )
+
+    mock_extractor = mock.MagicMock()
+    mock_extractor.thumbnail_exists.return_value = False
+    mock_extractor.extract_thumbnail.side_effect = Http404("Original file not found")
+    mock_get_extractor.return_value = mock_extractor
+
+    mock_path_instance = mock.MagicMock()
+    mock_path_instance.exists.return_value = False
+    mock_path.return_value = mock_path_instance
+
+    with mock.patch("gallery2.views.isinstance", return_value=True):
+        with mock.patch(
+            "gallery2.views.ImageThumbnailExtractor.can_handle", return_value=True
+        ):
+            response = client.get(
+                reverse("gallery2:entry_thumbnail", kwargs={"entry_id": entry.id})
+            )
+
+            assert response.status_code == 404
+
+            mock_get_extractor.assert_called_once_with(
+                entry.filenames, gallery.id, entry.id, 800
+            )
+            mock_extractor.thumbnail_exists.assert_called_once()
+
+
+@mock.patch("gallery2.views.get_thumbnail_extractor")
+@mock.patch("pathlib.Path.exists", return_value=True)
+@mock.patch("gallery2.views.open")
+def test_entry_thumbnail_with_size(
+    mock_open, mock_path_exists, mock_get_extractor, db, client
+):
+    """Test thumbnail generation with custom size."""
+    gallery = Gallery.objects.create(
+        name="Test Custom Size Gallery", directory="/fake/gallery/path"
+    )
+    entry = Entry.objects.create(
+        gallery=gallery,
+        basename="custom_size",
+        filenames=["custom_size.jpg"],
+        order=1.0,
+        caption="Test caption",
+    )
+
+    mock_extractor = mock.MagicMock()
+    mock_extractor.thumbnail_exists.return_value = False
+    mock_extractor.get_thumbnail_path.return_value = Path(
+        "/fake/thumbnails/path/thumbnail.jpg"
+    )
+    mock_extractor.extract_thumbnail.return_value = Path(
+        "/fake/thumbnails/path/thumbnail.jpg"
+    )
+    mock_get_extractor.return_value = mock_extractor
+
+    mock_file = mock.MagicMock()
+    mock_open.return_value = mock_file
+
+    with mock.patch("gallery2.views.isinstance", return_value=True):
+        with mock.patch(
+            "gallery2.views.ImageThumbnailExtractor.can_handle", return_value=True
+        ):
+            custom_size = 100
+            response = client.get(
+                reverse(
+                    "gallery2:entry_thumbnail_with_size",
+                    kwargs={"entry_id": entry.id, "size": custom_size},
+                )
+            )
+
+            assert response.status_code == 200
+            assert response["Content-Type"] == "image/jpeg"
+
+            mock_get_extractor.assert_called_once_with(
+                entry.filenames, gallery.id, entry.id, custom_size
+            )
+            mock_extractor.thumbnail_exists.assert_called_once()
+            mock_extractor.extract_thumbnail.assert_called_once()
+            mock_open.assert_called_once()
