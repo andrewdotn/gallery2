@@ -131,3 +131,21 @@ def edit_caption(request, entry_id):
         )
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
+
+
+@require_http_methods(["POST"])
+def set_entry_hidden(request, entry_id):
+    """
+    REST JSON endpoint to set the 'hidden' status of an entry.
+    Expects: { "hidden": true/false }
+    """
+    entry = get_object_or_404(Entry, pk=entry_id)
+    try:
+        data = json.loads(request.body)
+        if "hidden" not in data:
+            return JsonResponse({"error": "'hidden' field is required"}, status=400)
+        entry.hidden = bool(data["hidden"])
+        entry.save()
+        return JsonResponse({"id": entry.id, "hidden": entry.hidden})
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)

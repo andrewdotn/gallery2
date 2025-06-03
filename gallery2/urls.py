@@ -20,4 +20,9 @@ urlpatterns = [
         views.edit_caption,
         name="entry_edit_caption",
     ),
+    path(
+        "entry/<int:entry_id>/set_hidden",
+        views.set_entry_hidden,
+        name="set_entry_hidden",
+    ),
 ]

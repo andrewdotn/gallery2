@@ -24,6 +24,13 @@
                 {% if entry.timestamp %}
                   <h4>{{ entry.timestamp|timezone:"Europe/Amsterdam" }}</h4>
                 {% endif %}
+              <input type="checkbox"
+                  class="toggle-hidden-checkbox"
+                  data-entry-id="{{ entry.id }}"
+                  {% if entry.hidden %}checked{% endif %}
+                >
+                Hidden
+                </label>
                 <div data-raw-caption="{{ entry.caption }}">{{ entry.caption|markdown_to_html }}</div>
               </div>
             </div>

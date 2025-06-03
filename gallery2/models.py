@@ -15,3 +15,4 @@ class Entry(models.Model):
     order = models.FloatField()
     caption = models.TextField()
     timestamp = models.DateTimeField(null=True, blank=True)
+    hidden = models.BooleanField(default=False)

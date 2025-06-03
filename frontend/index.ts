@@ -199,6 +199,10 @@ function start() {
     const captionEditor = createCaptionEditor(entryId, rawCaption, htmlCaption);
     captionEditor.init(mountPoint);
   });
+
+
+
+
 }
 
 
