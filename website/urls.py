@@ -28,7 +28,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("polls/", include(polls.urls, namespace="polls")),
     path("gallery/", include(gallery2.urls, namespace="gallery2")),
-    path("", views.make_redirect_view("polls/")),
+    path("", views.make_redirect_view("gallery/")),
     *(
         [path("__debug__", include("debug_toolbar.urls"))]
         if settings.DEBUG_TOOLBAR
