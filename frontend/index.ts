@@ -96,9 +96,18 @@ function createCaptionEditor(entryId: number, initialCaption: string, htmlCaptio
 
   // Render edit mode
   function renderEditMode() {
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      // Check for Command+Enter (Mac) or Ctrl+Enter (Windows/Linux)
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        e.preventDefault();
+        handleSave();
+      }
+    };
+
     const textarea = React.createElement('textarea', {
       value: caption,
       onChange: handleTextareaChange,
+      onKeyDown: handleKeyDown,
       className: 'form-control mb-2',
       rows: 5,
       disabled: isSaving
