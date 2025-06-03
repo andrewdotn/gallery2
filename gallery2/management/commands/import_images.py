@@ -31,13 +31,11 @@ class Command(BaseCommand):
         gallery_id = options["gallery_id"]
         order_start = options["order"]
 
-        # Check if directory exists
         if not directory_path.exists() or not directory_path.is_dir():
             raise CommandError(
                 f"Directory '{directory_path}' does not exist or is not a directory"
             )
 
-        # Check if gallery exists
         try:
             gallery = Gallery.objects.get(pk=gallery_id)
         except Gallery.DoesNotExist:
@@ -47,7 +45,6 @@ class Command(BaseCommand):
             f"Importing images from '{directory_path}' into gallery '{gallery.name}'"
         )
 
-        # Get all image files in the directory
         image_extensions = (".jpg", ".jpeg", ".png", ".heic", ".mov")
         image_files = [
             f
@@ -55,7 +52,6 @@ class Command(BaseCommand):
             if f.is_file() and f.suffix.lower() in image_extensions
         ]
 
-        # Group files by basename
         basename_groups = {}
         for image_file in image_files:
             basename = image_file.stem
@@ -65,14 +61,12 @@ class Command(BaseCommand):
 
         self.stdout.write(f"Found {len(basename_groups)} unique images")
 
-        # Process each basename group
         order_value = order_start
         created_count = 0
         skipped_count = 0
 
         with transaction.atomic():
             for basename, files in basename_groups.items():
-                # Check if entry already exists for this basename
                 if Entry.objects.filter(
                     gallery=gallery, filename__startswith=basename
                 ).exists():
@@ -80,7 +74,6 @@ class Command(BaseCommand):
                     skipped_count += 1
                     continue
 
-                # Try to extract timestamp from image
                 timestamp = None
                 for file_path in files:
                     if file_path.suffix.lower() in (".jpg", ".jpeg", ".png", ".heic"):
@@ -95,10 +88,8 @@ class Command(BaseCommand):
                                 )
                             )
 
-                # Create entry
                 filename = basename
                 if files:
-                    # Use the first file's extension if available
                     filename = files[0].name
 
                 Entry.objects.create(
@@ -132,5 +123,4 @@ class Command(BaseCommand):
                         return datetime.strptime(date_str, "%Y:%m:%d %H:%M:%S")
                 return None
         except (UnidentifiedImageError, OSError):
-            # Not an image or can't be opened
             return None
