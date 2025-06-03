@@ -8,6 +8,7 @@ dependencies = [
     "markdown>=3.8",
     "pillow>=11.2.1",
     "pillow-heif>=0.22.0",
+    "python-dateutil>=2.9.0.post0",
     "uwsgi>=2.0.29",
 ]
 

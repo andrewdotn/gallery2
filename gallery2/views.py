@@ -1,11 +1,11 @@
-from django.urls import reverse_lazy
-from django.views.generic import ListView, CreateView, DetailView
-from django.http import FileResponse, Http404
-from django.conf import settings
-from django.shortcuts import get_object_or_404
-import os
+import json
 from pathlib import Path
-from PIL import Image, UnidentifiedImageError
+
+from django.http import FileResponse, Http404, JsonResponse
+from django.shortcuts import get_object_or_404
+from django.urls import reverse_lazy
+from django.views.decorators.http import require_http_methods
+from django.views.generic import ListView, CreateView, DetailView
 
 from .models import Gallery, Entry
 from .thumbnails import (
@@ -85,3 +85,47 @@ def entry_thumbnail(request, entry_id, size=800):
         thumbnail_path = extractor.extract_thumbnail(original_path)
 
     return FileResponse(open(thumbnail_path, "rb"), content_type="image/jpeg")
+
+
+@require_http_methods(["POST"])
+def edit_caption(request, entry_id):
+    """
+    REST JSON endpoint to edit the caption for a specific image entry.
+
+    Args:
+        request: The HTTP request object
+        entry_id: The ID of the entry to edit
+
+    Returns:
+        JsonResponse with the updated entry data or an error message
+    """
+    try:
+        entry = get_object_or_404(Entry, pk=entry_id)
+
+        # Parse the JSON data from the request body
+        try:
+            data = json.loads(request.body)
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Invalid JSON data"}, status=400)
+
+        # Check if the caption field is present in the request
+        if "caption" not in data:
+            return JsonResponse({"error": "Caption field is required"}, status=400)
+
+        # Update the caption
+        entry.caption = data["caption"]
+        entry.save()
+
+        # Return the updated entry data
+        return JsonResponse(
+            {
+                "id": entry.id,
+                "gallery_id": entry.gallery_id,
+                "basename": entry.basename,
+                "caption": entry.caption,
+                "order": entry.order,
+                "timestamp": entry.timestamp.isoformat() if entry.timestamp else None,
+            }
+        )
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)

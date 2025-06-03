@@ -1,5 +1,7 @@
 {% extends "gallery2/base.html" %}
 {% load gallery_extras %}
+{% load tz %}
+
 
 {% block content %}
 <div class="container">
@@ -20,7 +22,7 @@
                 <h3>{{ entry.basename }}</h3>
                 {{ entry.filenames }}
                 {% if entry.timestamp %}
-                  <h4>{{ entry.timestamp }}</h4>
+                  <h4>{{ entry.timestamp|timezone:"Europe/Amsterdam" }}</h4>
                 {% endif %}
                 <div>{{ entry.caption|markdown_to_html }}</div>
               </div>
