@@ -12,3 +12,4 @@ class Entry(models.Model):
     filename = models.CharField(max_length=DEFAULT_MAX_LENGTH)
     order = models.FloatField()
     caption = models.TextField()
+    timestamp = models.DateTimeField(null=True, blank=True)
