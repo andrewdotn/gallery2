@@ -200,9 +200,126 @@ function start() {
     captionEditor.init(mountPoint);
   });
 
+  // Handle toggle-hidden checkboxes
+  setupHiddenToggleCheckboxes();
+}
 
+// Function to create a hidden toggle checkbox component
+function createHiddenToggleCheckbox(entryId: string, initialHidden: boolean) {
+  // State variables
+  let isHidden = initialHidden;
+  let isLoading = false;
+  let error: string | null = null;
 
+  // DOM elements
+  let root: any = null;
 
+  // Event handlers
+  async function handleToggle(newHiddenState: boolean) {
+    isLoading = true;
+    error = null;
+    isHidden = newHiddenState; // Optimistically update the UI
+    render();
+
+    try {
+      const response = await fetch(`/gallery/entry/${entryId}/set_hidden`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCsrfToken(),
+        },
+        body: JSON.stringify({ hidden: newHiddenState }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to update hidden status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log(`Entry ${entryId} hidden status updated to: ${data.hidden}`);
+
+      // Update the state to match the server response
+      isHidden = data.hidden;
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'An unknown error occurred';
+      // Revert the state on error
+      isHidden = !newHiddenState;
+    } finally {
+      isLoading = false;
+      render();
+    }
+  }
+
+  // Render function
+  function render() {
+    if (!root) return;
+
+    root.render(renderCheckbox());
+  }
+
+  // Render the checkbox
+  function renderCheckbox() {
+    const checkbox = React.createElement('input', {
+      type: 'checkbox',
+      checked: isHidden,
+      onChange: (e: React.ChangeEvent<HTMLInputElement>) => handleToggle(e.target.checked),
+      disabled: isLoading,
+      className: 'me-2'
+    });
+
+    const label = React.createElement('span', {}, 'Hidden');
+
+    const errorElement = error ? 
+      React.createElement('div', { className: 'alert alert-danger mt-2 mb-0 p-2' }, error) : 
+      null;
+
+    const loadingIndicator = isLoading ?
+      React.createElement('span', { className: 'ms-2 spinner-border spinner-border-sm' }) :
+      null;
+
+    return React.createElement('div', { className: 'hidden-toggle-container' },
+      React.createElement('label', { className: 'd-flex align-items-center' },
+        checkbox,
+        label,
+        loadingIndicator
+      ),
+      errorElement
+    );
+  }
+
+  // Initialize
+  function init(mountPoint: HTMLElement) {
+    root = createRoot(mountPoint);
+    render();
+  }
+
+  return { init };
+}
+
+// Function to setup hidden toggle checkboxes
+function setupHiddenToggleCheckboxes() {
+  const checkboxes = document.querySelectorAll('.toggle-hidden-checkbox');
+
+  checkboxes.forEach(checkbox => {
+    if (!(checkbox instanceof HTMLInputElement)) return;
+
+    const entryId = checkbox.getAttribute('data-entry-id');
+    const isHidden = checkbox.checked;
+
+    if (!entryId) return;
+
+    // Get the parent label element
+    const label = checkbox.closest('label');
+    if (!label) return;
+
+    // Create a div to mount React
+    const mountPoint = document.createElement('div');
+    label.parentNode?.replaceChild(mountPoint, label);
+
+    // Create and initialize the hidden toggle component
+    const hiddenToggle = createHiddenToggleCheckbox(entryId, isHidden);
+    hiddenToggle.init(mountPoint);
+  });
 }
 
 
