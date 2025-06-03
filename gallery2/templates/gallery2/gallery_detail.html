@@ -1,4 +1,5 @@
 {% extends "gallery2/base.html" %}
+{% load gallery_extras %}
 
 {% block content %}
 <div class="container">
@@ -9,6 +10,21 @@
       <h2 class="card-title">{{ gallery.name }}</h2>
     </div>
   </div>
+
+  {% if entries %}
+    <div class="gallery-entries">
+      {% for entry in entries %}
+        <div class="card mb-3">
+          <div class="card-body">
+            <h3 class="card-title">{{ entry.filename }}</h3>
+            <div class="card-text">{{ entry.caption|markdown_to_html }}</div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="alert alert-info">No entries in this gallery.</div>
+  {% endif %}
 
   <div class="mb-3">
     <a href="{% url 'gallery2:gallery_list' %}" class="btn btn-secondary">Back to Galleries</a>

@@ -46,6 +46,10 @@ To get it running:
     ./manage.py migrate
     ./run
 
+## Testing
+
+`pytest` is used for unit testing.
+
 ## Deployment
 
 As a deployment mechanism, this project supports running a single server
