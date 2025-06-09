@@ -21,6 +21,8 @@ class Entry(models.Model):
     caption = models.TextField()
     timestamp = models.DateTimeField(null=True, blank=True)
     hidden = models.BooleanField(default=False)
+    width = models.IntegerField(null=True, blank=True)
+    height = models.IntegerField(null=True, blank=True)
 
     class Meta:
         unique_together = ("gallery", "order")

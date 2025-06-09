@@ -7,8 +7,10 @@ from django.http import Http404
 from unittest import mock
 import pytest
 import tempfile
+import os
+import shutil
 from bs4 import BeautifulSoup
-from PIL import Image
+from PIL import Image, ImageDraw
 from reversion import create_revision
 from reversion.models import Version
 from datetime import datetime, timezone as dt_timezone
@@ -109,6 +111,90 @@ def test_gallery_detail_view(db, client):
     assert "<strong>bold</strong>" in response.text
     assert "<em>italic</em>" in response.text
     assert '<a href="http://example.com">link</a>' in response.text
+
+
+def test_width_height_attributes(db, client, tmpdir):
+    """
+    Test that width and height attributes are added to the Entry model and rendered in the template.
+
+    This test:
+    1. Creates a test gallery with a 900x600 blue PNG image
+    2. Verifies gallery_detail initially has no width/height attributes
+    3. Hits the thumbnail endpoint
+    4. Verifies the model is updated with width/height
+    5. Verifies the rendered gallery_detail includes width/height attributes
+    """
+    # Create a temporary directory for the test gallery
+    # Create a 900x600 blue PNG image
+    image_path = os.path.join(tmpdir, "blue_test.png")
+    img = Image.new("RGB", (900, 600), color="blue")
+    img.save(image_path)
+
+    # Create a gallery with the temporary directory
+    gallery = Gallery.objects.create(name="Width Height Test Gallery", directory=tmpdir)
+
+    # Create an entry for the image
+    entry = Entry.objects.create(
+        gallery=gallery,
+        basename="blue_test",
+        filenames=["blue_test.png"],
+        order=1.0,
+        caption="Test image",
+    )
+
+    # Verify entry has no width/height initially
+    assert entry.width is None
+    assert entry.height is None
+
+    # Get the gallery detail page
+    response = client.get(reverse("gallery2:gallery_detail", kwargs={"pk": gallery.pk}))
+    assert response.status_code == 200
+
+    # Parse the HTML and verify no width/height attributes
+    soup = BeautifulSoup(response.content, "html.parser")
+    img_tag = soup.find(
+        "img",
+        {"src": reverse("gallery2:entry_thumbnail", kwargs={"entry_id": entry.id})},
+    )
+    assert img_tag is not None
+    assert "width" not in img_tag.attrs
+    assert "height" not in img_tag.attrs
+
+    # Hit the thumbnail endpoint
+    thumbnail_response = client.get(
+        reverse("gallery2:entry_thumbnail", kwargs={"entry_id": entry.id})
+    )
+    assert thumbnail_response.status_code == 200
+
+    # Verify the model is updated with width/height
+    entry.refresh_from_db()
+    assert entry.width == 900
+    assert entry.height == 600
+
+    # Get the gallery detail page again
+    response = client.get(reverse("gallery2:gallery_detail", kwargs={"pk": gallery.pk}))
+    assert response.status_code == 200
+
+    # Parse the HTML and verify width/height attributes are present
+    soup = BeautifulSoup(response.content, "html.parser")
+    img_tag = soup.find(
+        "img",
+        {"src": reverse("gallery2:entry_thumbnail", kwargs={"entry_id": entry.id})},
+    )
+    assert img_tag is not None
+    assert "width" in img_tag.attrs
+    assert "height" in img_tag.attrs
+
+    # Verify the width is scaled to 800 (or less if original is smaller)
+    expected_width = min(800, entry.width)
+    expected_height = (
+        int(entry.height * (expected_width / entry.width))
+        if entry.width > 800
+        else entry.height
+    )
+
+    assert int(img_tag["width"]) == expected_width
+    assert int(img_tag["height"]) == expected_height
 
 
 # Tests for import_images management command

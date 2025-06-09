@@ -87,8 +87,13 @@ def entry_thumbnail(request, entry_id, size=800):
         if not original_path.exists():
             raise Http404(f"Original file not found: {original_path}")
 
-        # Extract the thumbnail
-        thumbnail_path = extractor.extract_thumbnail(original_path)
+        # Extract the thumbnail and get dimensions
+        thumbnail_path, width, height = extractor.extract_thumbnail(original_path)
+
+        if entry.width != width or entry.height != height:
+            entry.width = width
+            entry.height = height
+            entry.save()
 
     return FileResponse(open(thumbnail_path, "rb"), content_type="image/jpeg")
 

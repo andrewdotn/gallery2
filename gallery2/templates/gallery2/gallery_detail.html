@@ -13,10 +13,20 @@
           <div class="entry-container mb-4">
             <div class="row">
               <div class="col-md-9">
-                <img src="{% url 'gallery2:entry_thumbnail' entry.id %}"
-                     alt="{{ entry.basename }}"
-                     class="img-fluid thumbnail"
-                     loading="lazy">
+                {% if entry.width and entry.height %}
+                  {% scale_dimensions entry.width entry.height 800 as scaled %}
+                  <img src="{% url 'gallery2:entry_thumbnail' entry.id %}"
+                       alt="{{ entry.basename }}"
+                       class="img-fluid thumbnail"
+                       loading="lazy"
+                       width="{{ scaled.width }}"
+                       height="{{ scaled.height }}">
+                {% else %}
+                  <img src="{% url 'gallery2:entry_thumbnail' entry.id %}"
+                       alt="{{ entry.basename }}"
+                       class="img-fluid thumbnail"
+                       loading="lazy">
+                {% endif %}
               </div>
               <div class="col-md-3">
                 <h3>{{ entry.basename }}</h3>

@@ -32,7 +32,22 @@ class ThumbnailExtractor:
     def thumbnail_exists(self) -> bool:
         return self.get_thumbnail_path().exists()
 
-    def extract_thumbnail(self, original_path):
+    def extract_thumbnail(self, original_path) -> tuple:
+        """
+        Extract a thumbnail from the original file.
+
+        Args:
+            original_path: Path to the original file
+
+        Returns:
+            Tuple containing:
+                - Path to the generated thumbnail
+                - Original width
+                - Original height
+
+        Raises:
+            NotImplementedError: This method must be implemented by subclasses
+        """
         raise NotImplementedError("Subclasses must implement extract_thumbnail")
 
 
@@ -47,7 +62,7 @@ class ImageThumbnailExtractor(ThumbnailExtractor):
         ext = Path(filename).suffix.lower()
         return ext in cls.SUPPORTED_EXTENSIONS
 
-    def extract_thumbnail(self, original_path: Path) -> Path:
+    def extract_thumbnail(self, original_path: Path) -> tuple:
         """
         Extract a thumbnail from an image file.
 
@@ -55,21 +70,28 @@ class ImageThumbnailExtractor(ThumbnailExtractor):
             original_path: Path to the original image file
 
         Returns:
-            Path to the generated thumbnail
+            Tuple containing:
+                - Path to the generated thumbnail
+                - Original image width
+                - Original image height
 
         Raises:
             Http404: If the image cannot be processed
         """
         thumbnail_path = self.get_thumbnail_path()
+        width = None
+        height = None
 
         try:
             with Image.open(original_path) as img:
+                # Get original dimensions before creating thumbnail
+                width, height = img.size
                 img.thumbnail((self.size, self.size))
                 img.save(thumbnail_path, "JPEG")
         except (UnidentifiedImageError, OSError) as e:
             raise Http404(f"Error processing image: {e}")
 
-        return thumbnail_path
+        return thumbnail_path, width, height
 
 
 class VideoThumbnailExtractor(ThumbnailExtractor):
@@ -83,7 +105,7 @@ class VideoThumbnailExtractor(ThumbnailExtractor):
         ext = Path(filename).suffix.lower()
         return ext in cls.SUPPORTED_EXTENSIONS
 
-    def extract_thumbnail(self, original_path: Path) -> Path:
+    def extract_thumbnail(self, original_path: Path) -> tuple:
         """
         Extract a thumbnail from a video file.
 
@@ -91,16 +113,25 @@ class VideoThumbnailExtractor(ThumbnailExtractor):
             original_path: Path to the original video file
 
         Returns:
-            Path to the generated thumbnail
+            Tuple containing:
+                - Path to the generated thumbnail
+                - Original video width
+                - Original video height
 
         Raises:
             Http404: If the video cannot be processed
         """
         thumbnail_path = self.get_thumbnail_path()
+        width = None
+        height = None
 
         try:
             container = av.open(str(original_path))
             video_stream = next(s for s in container.streams if s.type == "video")
+
+            # Get original dimensions
+            width = video_stream.width
+            height = video_stream.height
 
             THUMBNAIL_POSITION = 0.1  # 10% in
             duration = float(container.duration) / av.time_base
@@ -118,7 +149,7 @@ class VideoThumbnailExtractor(ThumbnailExtractor):
         except Exception as e:
             raise Http404(f"Error processing video: {e}")
 
-        return thumbnail_path
+        return thumbnail_path, width, height
 
 
 def get_thumbnail_extractor(
