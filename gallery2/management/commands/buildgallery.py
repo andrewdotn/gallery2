@@ -107,7 +107,7 @@ class Command(BaseCommand):
             # For images, use thumbnail instead of original file
             if file_type == "image":
                 # Create thumbnail extractor
-                thumbnail_extractor = ImageThumbnailExtractor(gallery.id, entry.id)
+                thumbnail_extractor = ImageThumbnailExtractor(gallery.id, entry.id, 800)
 
                 # Generate thumbnail if it doesn't exist
                 if not thumbnail_extractor.thumbnail_exists():
@@ -132,14 +132,19 @@ class Command(BaseCommand):
 
             # Copy secondary file if it exists
             video_filename = None
-            if image_file and video_file:
+            if video_file:
                 video_extension = video_file.suffix.lower()
                 video_dest_filename = f"{entry.id}_video{video_extension}"
                 video_dest_path = media_path / video_dest_filename
 
-                shutil.copy2(video_file, video_dest_path)
-                self.stdout.write(f"  Copied {video_file.name} to {video_dest_path}")
-                video_filename = video_dest_filename
+                if image_file:
+                    shutil.copy2(video_file, video_dest_path)
+                    self.stdout.write(
+                        f"  Copied {video_file.name} to {video_dest_path}"
+                    )
+                    video_filename = video_dest_filename
+                else:
+                    video_filename = dest_filename
 
             # Add entry to published entries list
             published_entries.append(

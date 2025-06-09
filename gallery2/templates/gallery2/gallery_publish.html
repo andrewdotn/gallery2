@@ -19,8 +19,7 @@
                            <div class="col-md-9 text-end">
                                 {% if entry.width and entry.height %}
                                     {% scale_dimensions entry.width entry.height 800 as scaled %}
-                                    <img src="media/{{ entry.filename }}" 
-                                         alt="{{ entry.basename }}" 
+                                    <img src="media/{{ entry.filename }}"
                                          width="{{ scaled.width }}"
                                          height="{{ scaled.height }}"
                                          class="img-fluid thumbnail"
@@ -30,8 +29,7 @@
                                          data-video-filename="{{ entry.video_filename }}"
                                          {% endif %}>
                                 {% else %}
-                                    <img src="media/{{ entry.filename }}" 
-                                         alt="{{ entry.basename }}" 
+                                    <img src="media/{{ entry.filename }}"
                                          {% if entry.has_video %}
                                          data-has-video="true" 
                                          data-video-filename="{{ entry.video_filename }}"

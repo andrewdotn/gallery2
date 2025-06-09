@@ -1,12 +1,10 @@
 function start() {
-// Find all images with data-has-video attribute
     const imagesWithVideo = document.querySelectorAll('img[data-has-video="true"]');
 
     imagesWithVideo.forEach(img => {
         img.addEventListener('click', function () {
             const videoFilename = `media/${this.getAttribute('data-video-filename')}`;
 
-            // Create video element
             const video = document.createElement('video');
             video.width = img.width;
             video.height = img.height;
@@ -19,7 +17,7 @@ function start() {
             const container = this.parentNode;
             container.replaceChild(video, this);
 
-            // Add event listener to go back to image when video ends
+            // go back to image when video ends
             video.addEventListener('ended', function () {
                 container.replaceChild(img, video);
             });
