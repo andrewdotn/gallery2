@@ -202,6 +202,9 @@ function start() {
 
   // Handle toggle-hidden checkboxes
   setupHiddenToggleCheckboxes();
+
+  // Handle video play buttons
+  setupVideoPlayButtons();
 }
 
 // Function to create a hidden toggle checkbox component
@@ -319,6 +322,69 @@ function setupHiddenToggleCheckboxes() {
     // Create and initialize the hidden toggle component
     const hiddenToggle = createHiddenToggleCheckbox(entryId, isHidden);
     hiddenToggle.init(mountPoint);
+  });
+}
+
+// Function to set up video play buttons
+function setupVideoPlayButtons() {
+  const playButtons = document.querySelectorAll('.play-video-btn');
+
+  playButtons.forEach(button => {
+    if (!(button instanceof HTMLButtonElement)) return;
+
+    button.addEventListener('click', function() {
+      const entryId = this.getAttribute('data-entry-id');
+      const videoFilename = this.getAttribute('data-video-filename');
+
+      if (!entryId || !videoFilename) return;
+
+      // Find the entry container
+      const entryContainer = this.closest('.entry-container');
+      if (!entryContainer) return;
+
+      // Find the image element
+      const imgElement = entryContainer.querySelector('img.thumbnail');
+      if (!imgElement) return;
+
+      // Get the image dimensions to maintain aspect ratio
+      const imgWidth = imgElement.width;
+      const imgHeight = imgElement.height;
+
+      // Create a video element
+      const videoElement = document.createElement('video');
+      videoElement.className = 'img-fluid';
+      videoElement.controls = true;
+      videoElement.autoplay = true;
+      videoElement.width = imgWidth;
+      videoElement.height = imgHeight;
+      videoElement.style.maxWidth = '100%';
+
+      // Create a source element
+      const sourceElement = document.createElement('source');
+      sourceElement.src = `/gallery/entry/${entryId}/original`;
+      sourceElement.type = 'video/quicktime'; // Assuming .mov file
+
+      // Add the source to the video
+      videoElement.appendChild(sourceElement);
+
+      // Store a reference to the button for later use
+      const playButton = this;
+
+      // Add event listener for when the video ends
+      videoElement.addEventListener('ended', function() {
+        // Replace the video with the original image
+        this.parentNode?.replaceChild(imgElement, this);
+
+        // Show the play button again
+        playButton.style.display = '';
+      });
+
+      // Replace the image with the video
+      imgElement.parentNode?.replaceChild(videoElement, imgElement);
+
+      // Hide the play button
+      this.style.display = 'none';
+    });
   });
 }
 

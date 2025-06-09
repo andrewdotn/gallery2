@@ -24,12 +24,21 @@
                        class="img-fluid thumbnail"
                        loading="lazy"
                        width="{{ scaled.width }}"
-                       height="{{ scaled.height }}">
+                       height="{{ scaled.height }}"
+                       {% if entry.filenames|has_video %}data-has-video="true" data-entry-id="{{ entry.id }}"{% endif %}>
                 {% else %}
                   <img src="{% url 'gallery2:entry_thumbnail' entry.id %}"
                        alt="{{ entry.basename }}"
                        class="img-fluid thumbnail"
-                       loading="lazy">
+                       loading="lazy"
+                       {% if entry.filenames|has_video %}data-has-video="true" data-entry-id="{{ entry.id }}"{% endif %}>
+                {% endif %}
+                {% if entry.filenames|has_video %}
+                  <div class="text-center mt-2">
+                    <button class="btn btn-primary play-video-btn" data-entry-id="{{ entry.id }}" data-video-filename="{{ entry.filenames|get_video_filename }}">
+                      Play Video
+                    </button>
+                  </div>
                 {% endif %}
               </div>
               <div class="col-md-3">
