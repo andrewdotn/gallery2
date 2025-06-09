@@ -16,6 +16,7 @@ from pathlib import Path
 
 from gallery2.models import Gallery, Entry
 from gallery2.management.commands.import_images import Command as ImportImagesCommand
+from gallery2.utils import timestamp_to_order
 
 
 def test_gallery_list_view(db, client):
@@ -320,18 +321,16 @@ def test_import_images_timestamp_ordering(mock_path, db):
     assert entry_map["image2"].timestamp == timestamp3
     assert entry_map["image3"].timestamp == timestamp1
 
-    # Verify order values are assigned based on timestamp in the format yyyymmdd.fraction_of_day
-    # image3 has timestamp 2023-01-01 12:00:00, so it should have order=20230101.5 + 10.0
-    # image1 has timestamp 2023-01-02 12:00:00, so it should have order=20230102.5 + 10.0
-    # image2 has timestamp 2023-01-03 12:00:00, so it should have order=20230103.5 + 10.0
+    # Verify order values are assigned based on timestamp in the format yyyymmdd.hhmmss
+    # image3 has timestamp 2023-01-01 12:00:00, so it should have order=20230101.12 + 10.0
+    # image1 has timestamp 2023-01-02 12:00:00, so it should have order=20230102.12 + 10.0
+    # image2 has timestamp 2023-01-03 12:00:00, so it should have order=20230103.12 + 10.0
 
     # Calculate expected order values using the timestamp_to_order function
     command = ImportImagesCommand()
-    expected_order3 = (
-        command.timestamp_to_order(timestamp1) + 10.0
-    )  # Earliest timestamp
-    expected_order1 = command.timestamp_to_order(timestamp2) + 10.0  # Middle timestamp
-    expected_order2 = command.timestamp_to_order(timestamp3) + 10.0  # Latest timestamp
+    expected_order3 = timestamp_to_order(timestamp1) + 10.0  # Earliest timestamp
+    expected_order1 = timestamp_to_order(timestamp2) + 10.0  # Middle timestamp
+    expected_order2 = timestamp_to_order(timestamp3) + 10.0  # Latest timestamp
 
     assert entry_map["image3"].order == expected_order3  # Earliest timestamp
     assert entry_map["image1"].order == expected_order1  # Middle timestamp
@@ -589,24 +588,22 @@ def test_timestamp_to_order_conversion():
     command = ImportImagesCommand()
 
     # Test with None timestamp (should return infinity)
-    assert command.timestamp_to_order(None) == float("inf")
+    assert timestamp_to_order(None) == float("inf")
 
     # Test with midnight UTC (should have 0.0 fraction)
     dt_midnight = datetime(2023, 1, 1, 0, 0, 0, tzinfo=dt_timezone.utc)
     expected_midnight = 20230101.0
-    assert command.timestamp_to_order(dt_midnight) == expected_midnight
+    assert timestamp_to_order(dt_midnight) == expected_midnight
 
-    # Test with noon UTC (should have 0.5 fraction)
+    # Test with noon UTC (should have 0.12 fraction)
     dt_noon = datetime(2023, 1, 1, 12, 0, 0, tzinfo=dt_timezone.utc)
-    expected_noon = 20230101.5
-    assert command.timestamp_to_order(dt_noon) == expected_noon
+    expected_noon = 20230101.12
+    assert timestamp_to_order(dt_noon) == expected_noon
 
-    # Test with end of day UTC (should have fraction close to 1.0)
+    # Test with end of day UTC (should have 0.235959 fraction)
     dt_end_of_day = datetime(2023, 1, 1, 23, 59, 59, tzinfo=dt_timezone.utc)
-    expected_end_of_day = 20230101.999988
-    assert (
-        abs(command.timestamp_to_order(dt_end_of_day) - expected_end_of_day) < 0.000001
-    )
+    expected_end_of_day = 20230101.235959
+    assert timestamp_to_order(dt_end_of_day) == expected_end_of_day
 
     # Test with non-UTC timezone (should be converted to UTC)
     # Create a timezone 5 hours ahead of UTC
@@ -615,9 +612,9 @@ def test_timestamp_to_order_conversion():
     )
     dt_non_utc = datetime(2023, 1, 1, 5, 0, 0, tzinfo=tz_plus_5)  # This is midnight UTC
     expected_non_utc = 20230101.0
-    assert command.timestamp_to_order(dt_non_utc) == expected_non_utc
+    assert timestamp_to_order(dt_non_utc) == expected_non_utc
 
-    # Test with a different date
+    # Test with a different date and time
     dt_different_date = datetime(2025, 5, 15, 6, 30, 0, tzinfo=dt_timezone.utc)
-    expected_different_date = 20250515.0 + (6.5 / 24)
-    assert command.timestamp_to_order(dt_different_date) == expected_different_date
+    expected_different_date = 20250515.063
+    assert timestamp_to_order(dt_different_date) == expected_different_date

@@ -8,39 +8,11 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
 from gallery2.models import Entry, Gallery
+from gallery2.utils import timestamp_to_order
 
 
 class Command(BaseCommand):
     help = "Import images from a directory into a gallery"
-
-    def timestamp_to_order(self, dt):
-        """
-        Convert a datetime object to a float in the format yyyymmdd.fraction_of_day
-
-        Args:
-            dt: A datetime object in UTC
-
-        Returns:
-            A float where the whole number portion is yyyymmdd and the decimal portion
-            is the fraction of the day (e.g., noon UTC = 0.5)
-        """
-        if dt is None:
-            return float("inf")  # Return infinity for None timestamps to sort them last
-
-        # Ensure the datetime is in UTC
-        if dt.tzinfo is not None:
-            dt = dt.astimezone(timezone.utc)
-
-        # Calculate the date portion (yyyymmdd)
-        date_portion = dt.year * 10000 + dt.month * 100 + dt.day
-
-        # Calculate the fraction of the day
-        seconds_in_day = 24 * 60 * 60
-        seconds_since_midnight = dt.hour * 3600 + dt.minute * 60 + dt.second
-        fraction_of_day = seconds_since_midnight / seconds_in_day
-
-        # Combine the date portion and fraction of day
-        return date_portion + fraction_of_day
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -136,7 +108,7 @@ class Command(BaseCommand):
         # Group entries by order value to handle duplicates
         order_groups = {}
         for entry_data in entries_to_create:
-            order_value = self.timestamp_to_order(entry_data["timestamp"])
+            order_value = timestamp_to_order(entry_data["timestamp"])
 
             # Apply the order_start offset if specified
             if order_start != 0.0:
