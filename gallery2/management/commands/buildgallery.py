@@ -104,8 +104,28 @@ class Command(BaseCommand):
             dest_filename = f"{entry.id}{extension}"
             dest_path = media_path / dest_filename
 
-            shutil.copy2(primary_file, dest_path)
-            self.stdout.write(f"  Copied {primary_file.name} to {dest_path}")
+            # For images, use thumbnail instead of original file
+            if file_type == "image":
+                # Create thumbnail extractor
+                thumbnail_extractor = ImageThumbnailExtractor(gallery.id, entry.id)
+
+                # Generate thumbnail if it doesn't exist
+                if not thumbnail_extractor.thumbnail_exists():
+                    thumbnail_path, _, _ = thumbnail_extractor.extract_thumbnail(
+                        primary_file
+                    )
+                else:
+                    thumbnail_path = thumbnail_extractor.get_thumbnail_path()
+
+                # Copy the thumbnail instead of the original
+                shutil.copy2(thumbnail_path, dest_path)
+                self.stdout.write(
+                    f"  Copied thumbnail for {primary_file.name} to {dest_path}"
+                )
+            else:
+                # For videos, keep copying the original file
+                shutil.copy2(primary_file, dest_path)
+                self.stdout.write(f"  Copied {primary_file.name} to {dest_path}")
 
             # Copy secondary file if it exists
             video_filename = None
