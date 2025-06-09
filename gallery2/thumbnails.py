@@ -87,7 +87,7 @@ class ImageThumbnailExtractor(ThumbnailExtractor):
                 # Get original dimensions before creating thumbnail
                 width, height = img.size
                 img.thumbnail((self.size, self.size))
-                img.save(thumbnail_path, "WEBP")
+                img.save(thumbnail_path, "WEBP", quality=90)
         except (UnidentifiedImageError, OSError) as e:
             raise Http404(f"Error processing image: {e}")
 
@@ -140,7 +140,7 @@ class VideoThumbnailExtractor(ThumbnailExtractor):
             for frame in container.decode(video_stream):
                 img = frame.to_image()
                 img.thumbnail((self.size, self.size))
-                img.save(thumbnail_path, "WEBP")
+                img.save(thumbnail_path, "WEBP", quality=90)
                 break
             container.close()
 

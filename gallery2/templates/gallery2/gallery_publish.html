@@ -1,4 +1,4 @@
-{% load gallery_extras %}<!DOCTYPE html>
+{% load gallery_extras %}{% load tz %}<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -39,7 +39,11 @@
                                 {% endif %}
                             </div>
                             <div class="col-md-3">
-                                <div>{{ entry.timestamp }}
+                                <div class="h4">{% if entry.timestamp %}
+                                  {{ entry.timestamp|timezone:"Europe/Amsterdam" }}
+                                  {% else %}
+                                  ~~~
+                                  {% endif %}
                                   {% if entry.has_video %}
                                     ⏵
                                   {% endif %}
