@@ -101,7 +101,7 @@ class Command(BaseCommand):
             extension = primary_file.suffix.lower()
 
             # Copy primary file to publish/media directory
-            dest_filename = f"{entry.id}{extension}"
+            dest_filename = Path(f"{entry.id}{extension}")
             dest_path = media_path / dest_filename
 
             # For images, use thumbnail instead of original file
@@ -116,6 +116,9 @@ class Command(BaseCommand):
                     )
                 else:
                     thumbnail_path = thumbnail_extractor.get_thumbnail_path()
+
+                dest_filename = dest_filename.with_suffix(".jpg")
+                dest_path = dest_path.with_suffix(".jpg")
 
                 # Copy the thumbnail instead of the original
                 shutil.copy2(thumbnail_path, dest_path)
