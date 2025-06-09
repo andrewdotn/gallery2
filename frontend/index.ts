@@ -170,26 +170,12 @@ function createCaptionEditor(entryId: number, initialCaption: string, htmlCaptio
 
 function start() {
   // Find all caption containers
-  const captionContainers = document.querySelectorAll('.entry-container .col-md-3 > div:last-child');
+  const captionContainers = document.querySelectorAll('.caption');
 
   captionContainers.forEach(container => {
-    // Get the entry ID from the img src attribute in the same entry container
-    const entryContainer = container.closest('.entry-container');
-    if (!entryContainer) return;
-
-    const imgElement = entryContainer.querySelector('img.thumbnail');
-    if (!imgElement) return;
-
-    const imgSrc = imgElement.getAttribute('src');
-    if (!imgSrc) return;
-
-    // Extract entry ID from the URL
-    const match = imgSrc.match(/entry\/(\d+)\/thumbnail/);
-    if (!match) return;
-
-    const entryId = parseInt(match[1], 10);
+    const entryId = container.dataset.entryId;
     const htmlCaption = container.innerHTML;
-    const rawCaption = container.getAttribute('data-raw-caption') || '';
+    const rawCaption = container.dataset.rawCaption || '';
 
     // Create a div to mount React
     const mountPoint = document.createElement('div');
