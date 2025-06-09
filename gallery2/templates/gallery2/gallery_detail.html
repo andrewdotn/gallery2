@@ -14,7 +14,11 @@
             <div class="row">
               <div class="col-md-9">
                 {% if entry.width and entry.height %}
-                  {% scale_dimensions entry.width entry.height 800 as scaled %}
+                  {% if entry.hidden %}
+                    {% scale_dimensions entry.width entry.height 100 as scaled %}
+                  {% else %}
+                    {% scale_dimensions entry.width entry.height 800 as scaled %}
+                  {% endif %}
                   <img src="{% url 'gallery2:entry_thumbnail' entry.id %}"
                        alt="{{ entry.basename }}"
                        class="img-fluid thumbnail"

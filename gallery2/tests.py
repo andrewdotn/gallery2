@@ -637,6 +637,64 @@ def test_entry_thumbnail_with_size(
             mock_open.assert_called_once()
 
 
+@mock.patch("gallery2.views.get_thumbnail_extractor")
+@mock.patch("pathlib.Path.exists", return_value=True)
+@mock.patch("gallery2.views.open")
+def test_entry_thumbnail_hidden(
+    mock_open, mock_path_exists, mock_get_extractor, db, client
+):
+    """Test thumbnail generation with hidden entry (should use size 100)."""
+    gallery = Gallery.objects.create(
+        name="Test Hidden Entry Gallery", directory="/fake/gallery/path"
+    )
+    entry = Entry.objects.create(
+        gallery=gallery,
+        basename="hidden_entry",
+        filenames=["hidden_entry.jpg"],
+        order=1.0,
+        caption="Test caption",
+        hidden=True,  # This entry is hidden
+    )
+
+    mock_extractor = mock.MagicMock()
+    mock_extractor.thumbnail_exists.return_value = False
+    mock_extractor.get_thumbnail_path.return_value = Path(
+        "/fake/thumbnails/path/thumbnail.jpg"
+    )
+    mock_extractor.extract_thumbnail.return_value = (
+        Path("/fake/thumbnails/path/thumbnail.jpg"),
+        400,  # width
+        300,  # height
+    )
+    mock_get_extractor.return_value = mock_extractor
+
+    mock_file = mock.MagicMock()
+    mock_open.return_value = mock_file
+
+    with mock.patch("gallery2.views.isinstance", return_value=True):
+        with mock.patch(
+            "gallery2.views.ImageThumbnailExtractor.can_handle", return_value=True
+        ):
+            # Use the default size URL (should be overridden to 100 for hidden entries)
+            response = client.get(
+                reverse(
+                    "gallery2:entry_thumbnail",
+                    kwargs={"entry_id": entry.id},
+                )
+            )
+
+            assert response.status_code == 200
+            assert response["Content-Type"] == "image/jpeg"
+
+            # Verify that size 100 was used for the hidden entry
+            mock_get_extractor.assert_called_once_with(
+                entry.filenames, gallery.id, entry.id, 100
+            )
+            mock_extractor.thumbnail_exists.assert_called_once()
+            mock_extractor.extract_thumbnail.assert_called_once()
+            mock_open.assert_called_once()
+
+
 def test_entry_caption_version_history(db):
     gallery = Gallery.objects.create(name="Version History Test Gallery")
 

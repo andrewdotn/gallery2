@@ -42,7 +42,7 @@ class GalleryCreateView(CreateView):
     success_url = reverse_lazy("gallery2:gallery_list")
 
 
-def entry_thumbnail(request, entry_id, size=800):
+def entry_thumbnail(request, entry_id, size=800, hidden_thumbnail_size=100):
     """
     Generate and serve a thumbnail for an entry.
 
@@ -55,6 +55,9 @@ def entry_thumbnail(request, entry_id, size=800):
     """
     entry = get_object_or_404(Entry, pk=entry_id)
     gallery = entry.gallery
+
+    if entry.hidden:
+        size = hidden_thumbnail_size
 
     # Get the appropriate thumbnail extractor
     extractor = get_thumbnail_extractor(entry.filenames, gallery.id, entry.id, size)
