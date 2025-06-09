@@ -1,7 +1,7 @@
 import os
 import pathlib
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 
 from PIL import Image, ExifTags
 from django.core.management.base import BaseCommand, CommandError
@@ -12,6 +12,35 @@ from gallery2.models import Entry, Gallery
 
 class Command(BaseCommand):
     help = "Import images from a directory into a gallery"
+
+    def timestamp_to_order(self, dt):
+        """
+        Convert a datetime object to a float in the format yyyymmdd.fraction_of_day
+
+        Args:
+            dt: A datetime object in UTC
+
+        Returns:
+            A float where the whole number portion is yyyymmdd and the decimal portion
+            is the fraction of the day (e.g., noon UTC = 0.5)
+        """
+        if dt is None:
+            return float("inf")  # Return infinity for None timestamps to sort them last
+
+        # Ensure the datetime is in UTC
+        if dt.tzinfo is not None:
+            dt = dt.astimezone(timezone.utc)
+
+        # Calculate the date portion (yyyymmdd)
+        date_portion = dt.year * 10000 + dt.month * 100 + dt.day
+
+        # Calculate the fraction of the day
+        seconds_in_day = 24 * 60 * 60
+        seconds_since_midnight = dt.hour * 3600 + dt.minute * 60 + dt.second
+        fraction_of_day = seconds_since_midnight / seconds_in_day
+
+        # Combine the date portion and fraction of day
+        return date_portion + fraction_of_day
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -104,22 +133,37 @@ class Command(BaseCommand):
             key=lambda x: x["timestamp"] if x["timestamp"] else str(datetime.max)
         )
 
-        # Second pass: create entries with order values based on sorted timestamps
+        # Group entries by order value to handle duplicates
+        order_groups = {}
+        for entry_data in entries_to_create:
+            order_value = self.timestamp_to_order(entry_data["timestamp"])
+
+            # Apply the order_start offset if specified
+            if order_start != 0.0:
+                order_value += order_start
+
+            if order_value not in order_groups:
+                order_groups[order_value] = []
+            order_groups[order_value].append(entry_data)
+
         with transaction.atomic():
-            for i, entry_data in enumerate(entries_to_create):
-                order_value = order_start + i
+            for order_value, entries in order_groups.items():
+                # If multiple entries have the same order value, add a small increment to make them unique
+                for i, entry_data in enumerate(entries):
+                    # Add a small increment (0.0001 * i) to ensure uniqueness while preserving sort order
+                    unique_order = order_value + (0.0001 * i) if i > 0 else order_value
 
-                Entry.objects.create(
-                    gallery=gallery,
-                    basename=entry_data["basename"],
-                    filenames=entry_data["filenames"],
-                    order=order_value,
-                    caption="",
-                    timestamp=entry_data["timestamp"],
-                )
+                    Entry.objects.create(
+                        gallery=gallery,
+                        basename=entry_data["basename"],
+                        filenames=entry_data["filenames"],
+                        order=unique_order,
+                        caption="",
+                        timestamp=entry_data["timestamp"],
+                    )
 
-                self.stdout.write(f"Created entry for '{entry_data['basename']}'")
-                created_count += 1
+                    self.stdout.write(f"Created entry for '{entry_data['basename']}'")
+                    created_count += 1
 
         self.stdout.write(
             self.style.SUCCESS(
@@ -128,8 +172,12 @@ class Command(BaseCommand):
         )
 
     def extract_timestamp(self, file_path):
-        """Extract timestamp from image EXIF data if available."""
+        """
+        Extract timestamp from image EXIF data if available.
 
+        Returns:
+            A datetime object in UTC timezone, or None if no timestamp could be extracted.
+        """
         with Image.open(file_path) as img:
             exif_data = img.getexif()
             if exif_data:
@@ -143,7 +191,11 @@ class Command(BaseCommand):
                     for k, v in exif_data.get_ifd(ExifTags.IFD.GPSInfo).items()
                 }
 
-                dtorig = re.sub(
+                if "DateTimeOriginal" not in data or "OffsetTimeOriginal" not in data:
+                    return None
+
+                # Format the date from "YYYY:MM:DD HH:MM:SS" to "YYYY-MM-DD HH:MM:SS"
+                date_time_str = re.sub(
                     r"""
                     (\d{4})
                     :
@@ -156,4 +208,9 @@ class Command(BaseCommand):
                     flags=re.VERBOSE,
                 )
 
-                return dtorig + " " + data["OffsetTimeOriginal"]
+                # Parse the datetime with timezone offset
+                dt_str = date_time_str + " " + data["OffsetTimeOriginal"]
+                dt = datetime.strptime(dt_str, "%Y-%m-%d %H:%M:%S %z")
+
+                # Convert to UTC
+                return dt.astimezone(timezone.utc)

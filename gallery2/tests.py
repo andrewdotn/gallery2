@@ -6,12 +6,16 @@ from django.utils import timezone
 from django.http import Http404
 from unittest import mock
 import pytest
+import tempfile
+from bs4 import BeautifulSoup
+from PIL import Image
 from reversion import create_revision
 from reversion.models import Version
-from datetime import datetime
+from datetime import datetime, timezone as dt_timezone
 from pathlib import Path
 
 from gallery2.models import Gallery, Entry
+from gallery2.management.commands.import_images import Command as ImportImagesCommand
 
 
 def test_gallery_list_view(db, client):
@@ -316,13 +320,22 @@ def test_import_images_timestamp_ordering(mock_path, db):
     assert entry_map["image2"].timestamp == timestamp3
     assert entry_map["image3"].timestamp == timestamp1
 
-    # Verify order values are assigned based on timestamp order (not basename order)
-    # image3 has earliest timestamp, so it should have order=10.0
-    # image1 has middle timestamp, so it should have order=11.0
-    # image2 has latest timestamp, so it should have order=12.0
-    assert entry_map["image3"].order == 10.0  # Earliest timestamp
-    assert entry_map["image1"].order == 11.0  # Middle timestamp
-    assert entry_map["image2"].order == 12.0  # Latest timestamp
+    # Verify order values are assigned based on timestamp in the format yyyymmdd.fraction_of_day
+    # image3 has timestamp 2023-01-01 12:00:00, so it should have order=20230101.5 + 10.0
+    # image1 has timestamp 2023-01-02 12:00:00, so it should have order=20230102.5 + 10.0
+    # image2 has timestamp 2023-01-03 12:00:00, so it should have order=20230103.5 + 10.0
+
+    # Calculate expected order values using the timestamp_to_order function
+    command = ImportImagesCommand()
+    expected_order3 = (
+        command.timestamp_to_order(timestamp1) + 10.0
+    )  # Earliest timestamp
+    expected_order1 = command.timestamp_to_order(timestamp2) + 10.0  # Middle timestamp
+    expected_order2 = command.timestamp_to_order(timestamp3) + 10.0  # Latest timestamp
+
+    assert entry_map["image3"].order == expected_order3  # Earliest timestamp
+    assert entry_map["image1"].order == expected_order1  # Middle timestamp
+    assert entry_map["image2"].order == expected_order2  # Latest timestamp
 
 
 # Tests for thumbnail view
@@ -349,8 +362,10 @@ def test_entry_thumbnail_new(
     mock_extractor.get_thumbnail_path.return_value = Path(
         "/fake/thumbnails/path/thumbnail.jpg"
     )
-    mock_extractor.extract_thumbnail.return_value = Path(
-        "/fake/thumbnails/path/thumbnail.jpg"
+    mock_extractor.extract_thumbnail.return_value = (
+        Path("/fake/thumbnails/path/thumbnail.jpg"),
+        800,  # width
+        600,  # height
     )
     mock_get_extractor.return_value = mock_extractor
 
@@ -504,8 +519,10 @@ def test_entry_thumbnail_with_size(
     mock_extractor.get_thumbnail_path.return_value = Path(
         "/fake/thumbnails/path/thumbnail.jpg"
     )
-    mock_extractor.extract_thumbnail.return_value = Path(
-        "/fake/thumbnails/path/thumbnail.jpg"
+    mock_extractor.extract_thumbnail.return_value = (
+        Path("/fake/thumbnails/path/thumbnail.jpg"),
+        400,  # width
+        300,  # height
     )
     mock_get_extractor.return_value = mock_extractor
 
@@ -565,3 +582,42 @@ def test_entry_caption_version_history(db):
     assert versions[0].field_dict["caption"] == caption_b
     # The older version should have caption A
     assert versions[1].field_dict["caption"] == caption_a
+
+
+def test_timestamp_to_order_conversion():
+    """Test the conversion of timestamps to order values."""
+    command = ImportImagesCommand()
+
+    # Test with None timestamp (should return infinity)
+    assert command.timestamp_to_order(None) == float("inf")
+
+    # Test with midnight UTC (should have 0.0 fraction)
+    dt_midnight = datetime(2023, 1, 1, 0, 0, 0, tzinfo=dt_timezone.utc)
+    expected_midnight = 20230101.0
+    assert command.timestamp_to_order(dt_midnight) == expected_midnight
+
+    # Test with noon UTC (should have 0.5 fraction)
+    dt_noon = datetime(2023, 1, 1, 12, 0, 0, tzinfo=dt_timezone.utc)
+    expected_noon = 20230101.5
+    assert command.timestamp_to_order(dt_noon) == expected_noon
+
+    # Test with end of day UTC (should have fraction close to 1.0)
+    dt_end_of_day = datetime(2023, 1, 1, 23, 59, 59, tzinfo=dt_timezone.utc)
+    expected_end_of_day = 20230101.999988
+    assert (
+        abs(command.timestamp_to_order(dt_end_of_day) - expected_end_of_day) < 0.000001
+    )
+
+    # Test with non-UTC timezone (should be converted to UTC)
+    # Create a timezone 5 hours ahead of UTC
+    tz_plus_5 = dt_timezone(
+        dt_timezone.utc.utcoffset(None) + timezone.timedelta(hours=5)
+    )
+    dt_non_utc = datetime(2023, 1, 1, 5, 0, 0, tzinfo=tz_plus_5)  # This is midnight UTC
+    expected_non_utc = 20230101.0
+    assert command.timestamp_to_order(dt_non_utc) == expected_non_utc
+
+    # Test with a different date
+    dt_different_date = datetime(2025, 5, 15, 6, 30, 0, tzinfo=dt_timezone.utc)
+    expected_different_date = 20250515.0 + (6.5 / 24)
+    assert command.timestamp_to_order(dt_different_date) == expected_different_date

@@ -20,7 +20,7 @@
               </div>
               <div class="col-md-3">
                 <h3>{{ entry.basename }}</h3>
-                {{ entry.filenames }}
+                {{ entry.filenames }} <small>{{ entry.order }}</small>
                 {% if entry.timestamp %}
                   <h4>{{ entry.timestamp|timezone:"Europe/Amsterdam" }}</h4>
                 {% endif %}
@@ -33,6 +33,9 @@
                 Hidden
               </label>
                 <div data-raw-caption="{{ entry.caption }}">{{ entry.caption|markdown_to_html }}</div>
+                <div class="mt-2">
+                  <a href="{% url 'admin:gallery2_entry_change' entry.id %}" class="btn btn-sm btn-outline-secondary" target="_blank">Edit in Admin</a>
+                </div>
               </div>
             </div>
           </div>

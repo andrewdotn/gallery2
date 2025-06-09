@@ -8,6 +8,9 @@ class Gallery(models.Model):
     name = models.TextField()
     directory = models.CharField(max_length=DEFAULT_MAX_LENGTH, default=".")
 
+    def __str__(self):
+        return self.name
+
 
 @reversion.register()
 class Entry(models.Model):
@@ -18,3 +21,6 @@ class Entry(models.Model):
     caption = models.TextField()
     timestamp = models.DateTimeField(null=True, blank=True)
     hidden = models.BooleanField(default=False)
+
+    class Meta:
+        unique_together = ("gallery", "order")
