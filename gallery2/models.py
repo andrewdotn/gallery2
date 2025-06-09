@@ -18,7 +18,7 @@ class Entry(models.Model):
     basename = models.CharField(max_length=DEFAULT_MAX_LENGTH)
     filenames = models.JSONField(default=list)
     order = models.FloatField()
-    caption = models.TextField()
+    caption = models.TextField(blank=True)
     timestamp = models.DateTimeField(null=True, blank=True)
     hidden = models.BooleanField(default=False)
     width = models.IntegerField(null=True, blank=True)
