@@ -6,6 +6,7 @@
     <meta name="referrer" content="same-origin">
     <title>{{ gallery.name }}</title>
     <link href="css/bootstrap.min.css" rel="stylesheet">
+    <link href="css/gallery.css" rel="stylesheet">
 </head>
 <body>
     <div class="container">
@@ -16,7 +17,14 @@
                 {% for entry in entries %}
                     <div class="entry-container mb-4">
                         <div class="row">
-                           <div class="col-md-9 text-end">
+                           <div class="col-md-9 d-flex align-items-end">
+                                 <div class="flex-fill">
+                                 </div>
+                                 {% if entry.has_video %}
+                                 <div class="video-indicator">
+                                    ⏵
+                                 </div>
+                                {% endif %}
                                 {% if entry.width and entry.height %}
                                     {% scale_dimensions entry.width entry.height 800 as scaled %}
                                     <img src="media/{{ entry.filename }}"
@@ -41,9 +49,6 @@
                                   {{ entry.timestamp|timezone:"Europe/Amsterdam" }}
                                   {% else %}
                                   ~~~
-                                  {% endif %}
-                                  {% if entry.has_video %}
-                                    ⏵
                                   {% endif %}
                                 </div>
                                 <div>{{ entry.caption|markdown_to_html }}</div>
