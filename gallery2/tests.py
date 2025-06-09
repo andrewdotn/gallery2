@@ -6,6 +6,8 @@ from django.utils import timezone
 from django.http import Http404
 from unittest import mock
 import pytest
+from reversion import create_revision
+from reversion.models import Version
 from datetime import datetime
 from pathlib import Path
 
@@ -531,3 +533,35 @@ def test_entry_thumbnail_with_size(
             mock_extractor.thumbnail_exists.assert_called_once()
             mock_extractor.extract_thumbnail.assert_called_once()
             mock_open.assert_called_once()
+
+
+def test_entry_caption_version_history(db):
+    gallery = Gallery.objects.create(name="Version History Test Gallery")
+
+    caption_a = "A"
+    with create_revision():
+        entry = Entry.objects.create(
+            gallery=gallery,
+            basename="version_test",
+            filenames=["version_test.jpg"],
+            order=1.0,
+            caption=caption_a,
+        )
+
+    # Update the entry with caption value B
+    caption_b = "B"
+    with create_revision():
+        entry.caption = caption_b
+        entry.save()
+
+    entry_from_db = Entry.objects.get(pk=entry.pk)
+    assert entry_from_db.caption == caption_b
+
+    # Verify that value A is accessible through the version history
+    versions = Version.objects.get_for_object(entry)
+    assert versions.count() == 2
+
+    # The most recent version should have caption B
+    assert versions[0].field_dict["caption"] == caption_b
+    # The older version should have caption A
+    assert versions[1].field_dict["caption"] == caption_a
