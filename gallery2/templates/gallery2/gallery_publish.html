@@ -1,0 +1,76 @@
+{% load gallery_extras %}<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="same-origin">
+    <title>{{ gallery.name }}</title>
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <h1>{{ gallery.name }}</h1>
+
+        {% if entries %}
+            <div class="gallery-entries">
+                {% for entry in entries %}
+                    <div class="entry-container mb-4">
+                        <div class="row">
+                           <div class="col-md-9">
+                                {% if entry.width and entry.height %}
+                                    {% with width=entry.width height=entry.height max_width=800 %}
+                                        {% if width > max_width %}
+                                            {% with ratio=max_width|floatformat:0|stringformat:"s"|add:"/"|add:width|floatformat:0|stringformat:"s" %}
+                                                {% with new_height=height|floatformat:0|stringformat:"s"|add:"*"|add:ratio|safe %}
+                                                    <img src="media/{{ entry.filename }}" 
+                                                         alt="{{ entry.basename }}" 
+                                                         width="{{ max_width }}"
+                                                         height="{{ new_height }}"
+                                                         class="img-fluid thumbnail"
+                                                         loading="lazy"
+                                                         {% if entry.has_video %}
+                                                         data-has-video="true" 
+                                                         data-video-filename="{{ entry.video_filename }}"
+                                                         {% endif %}>
+                                                {% endwith %}
+                                            {% endwith %}
+                                        {% else %}
+                                            <img src="media/{{ entry.filename }}" 
+                                                 alt="{{ entry.basename }}" 
+                                                 width="{{ entry.width }}"
+                                                 height="{{ entry.height }}"
+                                                 class="img-fluid thumbnail"
+                                                 loading="lazy"
+                                                 {% if entry.has_video %}
+                                                 data-has-video="true" 
+                                                 data-video-filename="{{ entry.video_filename }}"
+                                                 {% endif %}>
+                                        {% endif %}
+                                    {% endwith %}
+                                {% else %}
+                                    <img src="media/{{ entry.filename }}" 
+                                         alt="{{ entry.basename }}" 
+                                         {% if entry.has_video %}
+                                         data-has-video="true" 
+                                         data-video-filename="{{ entry.video_filename }}"
+                                         {% endif %}>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-3">
+                                {% if entry.timestamp %}
+                                    <div>{{ entry.timestamp }}</div>
+                                {% endif %}
+                                <div>{{ entry.caption|markdown_to_html }}</div>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="alert alert-info">No entries in this gallery.</div>
+        {% endif %}
+    </div>
+
+    <script src="js/gallery.js"></script>
+</body>
+</html>
