@@ -1,6 +1,7 @@
 from django import template
 from django.utils.safestring import mark_safe
 import markdown
+from pathlib import Path
 
 register = template.Library()
 
@@ -34,3 +35,43 @@ def scale_dimensions(width, height, max_size=800):
     scaled_height = int(height * scale_factor)
 
     return {"width": scaled_width, "height": scaled_height}
+
+
+@register.filter
+def has_video(filenames):
+    """
+    Check if any of the filenames in the list has a video extension.
+    Usage: {{ entry.filenames|has_video }}
+    Returns True if any filename has a .mov extension.
+    """
+    if not filenames:
+        return False
+
+    VIDEO_EXTENSIONS = [".mov", ".mp4", ".avi", ".mkv"]
+
+    for filename in filenames:
+        ext = Path(filename).suffix.lower()
+        if ext in VIDEO_EXTENSIONS:
+            return True
+
+    return False
+
+
+@register.filter
+def get_video_filename(filenames):
+    """
+    Get the first video filename from the list.
+    Usage: {{ entry.filenames|get_video_filename }}
+    Returns the first filename with a video extension, or None if no video file is found.
+    """
+    if not filenames:
+        return None
+
+    VIDEO_EXTENSIONS = [".mov", ".mp4", ".avi", ".mkv"]
+
+    for filename in filenames:
+        ext = Path(filename).suffix.lower()
+        if ext in VIDEO_EXTENSIONS:
+            return filename
+
+    return None
