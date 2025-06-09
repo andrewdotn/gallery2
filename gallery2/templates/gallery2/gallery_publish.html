@@ -18,35 +18,17 @@
                         <div class="row">
                            <div class="col-md-9">
                                 {% if entry.width and entry.height %}
-                                    {% with width=entry.width height=entry.height max_width=800 %}
-                                        {% if width > max_width %}
-                                            {% with ratio=max_width|floatformat:0|stringformat:"s"|add:"/"|add:width|floatformat:0|stringformat:"s" %}
-                                                {% with new_height=height|floatformat:0|stringformat:"s"|add:"*"|add:ratio|safe %}
-                                                    <img src="media/{{ entry.filename }}" 
-                                                         alt="{{ entry.basename }}" 
-                                                         width="{{ max_width }}"
-                                                         height="{{ new_height }}"
-                                                         class="img-fluid thumbnail"
-                                                         loading="lazy"
-                                                         {% if entry.has_video %}
-                                                         data-has-video="true" 
-                                                         data-video-filename="{{ entry.video_filename }}"
-                                                         {% endif %}>
-                                                {% endwith %}
-                                            {% endwith %}
-                                        {% else %}
-                                            <img src="media/{{ entry.filename }}" 
-                                                 alt="{{ entry.basename }}" 
-                                                 width="{{ entry.width }}"
-                                                 height="{{ entry.height }}"
-                                                 class="img-fluid thumbnail"
-                                                 loading="lazy"
-                                                 {% if entry.has_video %}
-                                                 data-has-video="true" 
-                                                 data-video-filename="{{ entry.video_filename }}"
-                                                 {% endif %}>
-                                        {% endif %}
-                                    {% endwith %}
+                                    {% scale_dimensions entry.width entry.height 800 as scaled %}
+                                    <img src="media/{{ entry.filename }}" 
+                                         alt="{{ entry.basename }}" 
+                                         width="{{ scaled.width }}"
+                                         height="{{ scaled.height }}"
+                                         class="img-fluid thumbnail"
+                                         loading="lazy"
+                                         {% if entry.has_video %}
+                                         data-has-video="true" 
+                                         data-video-filename="{{ entry.video_filename }}"
+                                         {% endif %}>
                                 {% else %}
                                     <img src="media/{{ entry.filename }}" 
                                          alt="{{ entry.basename }}" 

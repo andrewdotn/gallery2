@@ -21,17 +21,24 @@ def markdown_to_html(text):
 def scale_dimensions(width, height, max_size=800):
     """
     Scale width and height proportionally for thumbnail display.
+    Ensures neither width nor height exceeds max_size while maintaining aspect ratio.
     Usage: {% scale_dimensions entry.width entry.height 800 as scaled %}
            width="{{ scaled.width }}" height="{{ scaled.height }}"
     """
     if width is None or height is None:
         return {"width": "", "height": ""}
 
-    if width <= max_size:
+    if width <= max_size and height <= max_size:
         return {"width": width, "height": height}
 
-    scale_factor = max_size / width
-    scaled_width = int(max_size)
+    # Determine which dimension needs more scaling
+    width_scale_factor = max_size / width if width > max_size else 1
+    height_scale_factor = max_size / height if height > max_size else 1
+
+    # Use the smaller scale factor to ensure both dimensions fit within max_size
+    scale_factor = min(width_scale_factor, height_scale_factor)
+
+    scaled_width = int(width * scale_factor)
     scaled_height = int(height * scale_factor)
 
     return {"width": scaled_width, "height": scaled_height}
