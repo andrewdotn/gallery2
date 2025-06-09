@@ -1,4 +1,5 @@
 import json
+import mimetypes
 from pathlib import Path
 
 from django.http import FileResponse, Http404, JsonResponse
@@ -14,6 +15,10 @@ from .thumbnails import (
     ImageThumbnailExtractor,
     VideoThumbnailExtractor,
 )
+
+# Register additional MIME types that might not be in the default database
+mimetypes.add_type("image/heic", ".heic")
+mimetypes.add_type("video/quicktime", ".mov")
 
 
 class GalleryListView(ListView):
@@ -149,3 +154,34 @@ def set_entry_hidden(request, entry_id):
         return JsonResponse({"id": entry.id, "hidden": entry.hidden})
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
+
+
+def entry_original(request, entry_id):
+    """
+    Serve the original file for an entry.
+
+    Returns:
+        FileResponse with the original file
+    """
+    entry = get_object_or_404(Entry, pk=entry_id)
+    gallery = entry.gallery
+
+    # Find the first file that exists
+    original_filename = None
+    for filename in entry.filenames:
+        original_path = Path(gallery.directory) / filename
+        if original_path.exists():
+            original_filename = filename
+            break
+
+    if not original_filename:
+        raise Http404(f"No original file found for entry {entry_id}")
+
+    original_path = Path(gallery.directory) / original_filename
+
+    # Determine content type using Python's mimetypes module
+    content_type, encoding = mimetypes.guess_type(original_filename)
+    if content_type is None:
+        content_type = "application/octet-stream"  # Default
+
+    return FileResponse(open(original_path, "rb"), content_type=content_type)

@@ -34,7 +34,8 @@
               </label>
                 <div data-raw-caption="{{ entry.caption }}">{{ entry.caption|markdown_to_html }}</div>
                 <div class="mt-2">
-                  <a href="{% url 'admin:gallery2_entry_change' entry.id %}" class="btn btn-sm btn-outline-secondary" target="_blank">Edit in Admin</a>
+                  <a href="{% url 'admin:gallery2_entry_change' entry.id %}" class="btn btn-sm btn-outline-secondary">Admin</a>
+                  <a href="{% url 'gallery2:entry_original' entry.id %}" class="btn btn-sm btn-outline-primary">View Original</a>
                 </div>
               </div>
             </div>

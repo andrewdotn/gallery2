@@ -25,4 +25,9 @@ urlpatterns = [
         views.set_entry_hidden,
         name="set_entry_hidden",
     ),
+    path(
+        "entry/<int:entry_id>/original/",
+        views.entry_original,
+        name="entry_original",
+    ),
 ]
