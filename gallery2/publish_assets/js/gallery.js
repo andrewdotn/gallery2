@@ -8,6 +8,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Create video element
             const video = document.createElement('video');
+            video.width = img.width;
+            video.height = img.height;
             video.src = videoFilename;
             video.controls = true;
             video.autoplay = true;
