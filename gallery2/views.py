@@ -167,6 +167,7 @@ def set_entry_hidden(request, entry_id):
 def entry_original(request, entry_id):
     """
     Serve the original file for an entry.
+    Prioritizes image files over video files, similar to thumbnail extraction.
 
     Returns:
         FileResponse with the original file
@@ -174,13 +175,23 @@ def entry_original(request, entry_id):
     entry = get_object_or_404(Entry, pk=entry_id)
     gallery = entry.gallery
 
-    # Find the first file that exists
+    # First try to find an image file
     original_filename = None
     for filename in entry.filenames:
-        original_path = Path(gallery.directory) / filename
-        if original_path.exists():
-            original_filename = filename
-            break
+        if ImageThumbnailExtractor.can_handle(filename):
+            original_path = Path(gallery.directory) / filename
+            if original_path.exists():
+                original_filename = filename
+                break
+
+    # If no image file is found, try to find a video file
+    if not original_filename:
+        for filename in entry.filenames:
+            if VideoThumbnailExtractor.can_handle(filename):
+                original_path = Path(gallery.directory) / filename
+                if original_path.exists():
+                    original_filename = filename
+                    break
 
     if not original_filename:
         raise Http404(f"No original file found for entry {entry_id}")

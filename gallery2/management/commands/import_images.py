@@ -1,11 +1,13 @@
 import os
 import pathlib
 import re
+from collections import defaultdict
 from datetime import datetime, timezone
 
 from PIL import Image, ExifTags
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
+from django.db.models import Min
 
 from gallery2.models import Entry, Gallery
 from gallery2.utils import timestamp_to_order
@@ -21,17 +23,10 @@ class Command(BaseCommand):
         parser.add_argument(
             "gallery_id", type=int, help="ID of the gallery to import images into"
         )
-        parser.add_argument(
-            "--order",
-            type=float,
-            default=0.0,
-            help="Starting order value for new entries (default: 0.0)",
-        )
 
     def handle(self, *args, **options):
         directory_path = pathlib.Path(options["directory"])
         gallery_id = options["gallery_id"]
-        order_start = options["order"]
 
         if not directory_path.exists() or not directory_path.is_dir():
             raise CommandError(
@@ -106,24 +101,29 @@ class Command(BaseCommand):
         )
 
         # Group entries by order value to handle duplicates
-        order_groups = {}
+        order_groups = defaultdict(list)
         for entry_data in entries_to_create:
             order_value = timestamp_to_order(entry_data["timestamp"])
-
-            # Apply the order_start offset if specified
-            if order_start != 0.0:
-                order_value += order_start
-
-            if order_value not in order_groups:
-                order_groups[order_value] = []
             order_groups[order_value].append(entry_data)
 
         with transaction.atomic():
             for order_value, entries in order_groups.items():
-                # If multiple entries have the same order value, add a small increment to make them unique
+                if order_value is None:
+                    min_order = min(
+                        Entry.objects.filter(gallery=gallery).aggregate(Min("order"))[
+                            "order__min"
+                        ],
+                        0,
+                    )
+                    min_order -= len(entries)
+
+                # If multiple entries have the same order value (including those
+                # without timestamp), add a small increment to make them unique
                 for i, entry_data in enumerate(entries):
-                    # Add a small increment (0.0001 * i) to ensure uniqueness while preserving sort order
-                    unique_order = order_value + (0.0001 * i) if i > 0 else order_value
+                    if order_value is None:
+                        order_value = min_order + i
+
+                    unique_order = order_value + (1e-6 * i) if i > 0 else order_value
 
                     Entry.objects.create(
                         gallery=gallery,

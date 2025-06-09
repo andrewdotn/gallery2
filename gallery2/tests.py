@@ -392,8 +392,7 @@ def test_import_images_timestamp_ordering(mock_path, db):
         # Return timestamps in non-chronological order to test sorting
         mock_extract.side_effect = [timestamp2, timestamp3, timestamp1]
 
-        # Call the command with a starting order of 10.0
-        call_command("import_images", "/fake/path", gallery.id, "--order", "10.0")
+        call_command("import_images", "/fake/path", gallery.id)
 
     # Get entries sorted by basename
     entries = Entry.objects.filter(gallery=gallery).order_by("basename")
@@ -407,20 +406,15 @@ def test_import_images_timestamp_ordering(mock_path, db):
     assert entry_map["image2"].timestamp == timestamp3
     assert entry_map["image3"].timestamp == timestamp1
 
-    # Verify order values are assigned based on timestamp in the format yyyymmdd.hhmmss
-    # image3 has timestamp 2023-01-01 12:00:00, so it should have order=20230101.12 + 10.0
-    # image1 has timestamp 2023-01-02 12:00:00, so it should have order=20230102.12 + 10.0
-    # image2 has timestamp 2023-01-03 12:00:00, so it should have order=20230103.12 + 10.0
-
     # Calculate expected order values using the timestamp_to_order function
     command = ImportImagesCommand()
-    expected_order3 = timestamp_to_order(timestamp1) + 10.0  # Earliest timestamp
-    expected_order1 = timestamp_to_order(timestamp2) + 10.0  # Middle timestamp
-    expected_order2 = timestamp_to_order(timestamp3) + 10.0  # Latest timestamp
+    expected_order3 = timestamp_to_order(timestamp1)
+    expected_order1 = timestamp_to_order(timestamp2)
+    expected_order2 = timestamp_to_order(timestamp3)
 
-    assert entry_map["image3"].order == expected_order3  # Earliest timestamp
-    assert entry_map["image1"].order == expected_order1  # Middle timestamp
-    assert entry_map["image2"].order == expected_order2  # Latest timestamp
+    assert entry_map["image3"].order == expected_order3
+    assert entry_map["image1"].order == expected_order1
+    assert entry_map["image2"].order == expected_order2
 
 
 # Tests for thumbnail view
@@ -731,8 +725,8 @@ def test_timestamp_to_order_conversion():
     """Test the conversion of timestamps to order values."""
     command = ImportImagesCommand()
 
-    # Test with None timestamp (should return infinity)
-    assert timestamp_to_order(None) == float("inf")
+    # Test with None timestamp
+    assert timestamp_to_order(None) == None
 
     # Test with midnight UTC (should have 0.0 fraction)
     dt_midnight = datetime(2023, 1, 1, 0, 0, 0, tzinfo=dt_timezone.utc)
@@ -762,3 +756,48 @@ def test_timestamp_to_order_conversion():
     dt_different_date = datetime(2025, 5, 15, 6, 30, 0, tzinfo=dt_timezone.utc)
     expected_different_date = 20250515.063
     assert timestamp_to_order(dt_different_date) == expected_different_date
+
+
+@mock.patch("pathlib.Path.exists", return_value=True)
+@mock.patch("gallery2.views.open")
+def test_entry_original_prioritizes_images(mock_open, mock_path_exists, db, client):
+    """Test that entry_original prioritizes image files over movie files."""
+    gallery = Gallery.objects.create(
+        name="Test Original Files Gallery", directory="/fake/gallery/path"
+    )
+
+    # Create an entry with both image and video files
+    entry = Entry.objects.create(
+        gallery=gallery,
+        basename="mixed_files",
+        filenames=["video.mov", "image.jpg"],  # Video file first, image file second
+        order=1.0,
+        caption="Test caption",
+    )
+
+    mock_file = mock.MagicMock()
+    mock_open.return_value = mock_file
+
+    # Mock the can_handle methods to identify file types correctly
+    with mock.patch(
+        "gallery2.views.ImageThumbnailExtractor.can_handle",
+        side_effect=lambda f: f.endswith((".jpg", ".jpeg", ".png", ".heic")),
+    ):
+        with mock.patch(
+            "gallery2.views.VideoThumbnailExtractor.can_handle",
+            side_effect=lambda f: f.endswith((".mp4", ".mov", ".avi", ".mkv")),
+        ):
+
+            response = client.get(
+                reverse("gallery2:entry_original", kwargs={"entry_id": entry.id})
+            )
+
+            assert response.status_code == 200
+
+            # Verify that the image file was chosen, not the video file
+            # The original_path should be constructed with 'image.jpg', not 'video.mov'
+            mock_open.assert_called_once()
+            args, kwargs = mock_open.call_args
+            file_path = args[0]
+            assert str(file_path).endswith("image.jpg")
+            assert not str(file_path).endswith("video.mov")
