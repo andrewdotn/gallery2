@@ -117,8 +117,8 @@ class Command(BaseCommand):
                 else:
                     thumbnail_path = thumbnail_extractor.get_thumbnail_path()
 
-                dest_filename = dest_filename.with_suffix(".jpg")
-                dest_path = dest_path.with_suffix(".jpg")
+                dest_filename = dest_filename.with_suffix(".webp")
+                dest_path = dest_path.with_suffix(".webp")
 
                 # Copy the thumbnail instead of the original
                 shutil.copy2(thumbnail_path, dest_path)

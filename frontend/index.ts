@@ -134,7 +134,7 @@ function createCaptionEditor(entryId: number, initialCaption: string, htmlCaptio
       cancelButton
     );
 
-    return React.createElement('div', { className: 'caption-editor' },
+    return React.createElement('div', { className: 'caption-editor grow-wrap', 'data-replicated-value': caption },
       textarea,
       errorElement,
       buttonGroup

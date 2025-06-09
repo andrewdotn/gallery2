@@ -9,6 +9,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.db.models import Min
 
+from gallery2.files import MEDIA_EXTENSIONS, IMAGE_EXTENSIONS
 from gallery2.models import Entry, Gallery
 from gallery2.utils import timestamp_to_order
 
@@ -45,11 +46,10 @@ class Command(BaseCommand):
             f"Importing images from '{directory_path}' into gallery '{gallery.name}'"
         )
 
-        image_extensions = (".jpg", ".jpeg", ".png", ".heic", ".mov")
         image_files = [
             f
             for f in directory_path.iterdir()
-            if f.is_file() and f.suffix.lower() in image_extensions
+            if f.is_file() and f.suffix.lower() in MEDIA_EXTENSIONS
         ]
 
         basename_groups = {}
@@ -74,7 +74,7 @@ class Command(BaseCommand):
 
             timestamp = None
             for file_path in files:
-                if file_path.suffix.lower() in (".jpg", ".jpeg", ".png", ".heic"):
+                if file_path.suffix.lower() in IMAGE_EXTENSIONS:
                     try:
                         timestamp = self.extract_timestamp(file_path)
                         if timestamp:

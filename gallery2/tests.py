@@ -16,6 +16,7 @@ from reversion.models import Version
 from datetime import datetime, timezone as dt_timezone
 from pathlib import Path
 
+from gallery2.files import IMAGE_EXTENSIONS
 from gallery2.models import Gallery, Entry
 from gallery2.management.commands.import_images import Command as ImportImagesCommand
 from gallery2.utils import timestamp_to_order
@@ -781,7 +782,7 @@ def test_entry_original_prioritizes_images(mock_open, mock_path_exists, db, clie
     # Mock the can_handle methods to identify file types correctly
     with mock.patch(
         "gallery2.views.ImageThumbnailExtractor.can_handle",
-        side_effect=lambda f: f.endswith((".jpg", ".jpeg", ".png", ".heic")),
+        side_effect=lambda f: f.endswith(IMAGE_EXTENSIONS),
     ):
         with mock.patch(
             "gallery2.views.VideoThumbnailExtractor.can_handle",

@@ -5,3 +5,36 @@
 a:visited:not(.btn) {
   color: purple;
 }
+
+
+// https://til.simonwillison.net/css/resizing-textarea
+.grow-wrap {
+  /* This is the wrapper element around the `<textarea>` */
+  display: grid;
+}
+
+/* ::after adds a pseudo-element inside, after the `<textarea>` */
+.grow-wrap::after {
+  /* Note the weird space! Needed to prevent jumpy behavior */
+  content: attr(data-replicated-value) " ";
+
+  /* This is how `<textarea>` text behaves */
+  white-space: pre-wrap;
+
+  /* Hidden from view, clicks, and screen readers */
+  visibility: hidden;
+}
+
+.grow-wrap > textarea,
+.grow-wrap::after {
+  /* Identical styling required!! */
+  border: 1px solid black;
+  border-radius: 3px;
+  padding: 0.35rem;
+  font: inherit;
+  line-height: 1.4;
+  font-family: sans-serif;
+
+  /* textarea and ::after should occupy the first (and only) cell of the grid: */
+  grid-area: 1 / 1 / 2 / 2;
+}

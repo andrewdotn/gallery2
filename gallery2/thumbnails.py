@@ -12,6 +12,8 @@ from PIL import Image, UnidentifiedImageError
 from django.conf import settings
 from django.http import Http404
 
+from gallery2.files import IMAGE_EXTENSIONS, MOVIE_EXTENSIONS
+
 
 class ThumbnailExtractor:
     """Base class for thumbnail extractors."""
@@ -25,7 +27,7 @@ class ThumbnailExtractor:
 
     def get_thumbnail_path(self) -> Path:
         thumbnail_filename = (
-            f"gallery_{self.gallery_id}_entry_{self.entry_id}_thumb_{self.size}.jpg"
+            f"gallery_{self.gallery_id}_entry_{self.entry_id}_thumb_{self.size}.webp"
         )
         return self.thumbnails_dir / thumbnail_filename
 
@@ -54,13 +56,11 @@ class ThumbnailExtractor:
 class ImageThumbnailExtractor(ThumbnailExtractor):
     """Thumbnail extractor for image files (png, jpeg, heic)."""
 
-    SUPPORTED_EXTENSIONS = [".jpg", ".jpeg", ".png", ".heic"]
-
     @classmethod
     def can_handle(cls, filename: str) -> bool:
         """Check if this extractor can handle the given filename."""
         ext = Path(filename).suffix.lower()
-        return ext in cls.SUPPORTED_EXTENSIONS
+        return ext in IMAGE_EXTENSIONS
 
     def extract_thumbnail(self, original_path: Path) -> tuple:
         """
@@ -87,7 +87,7 @@ class ImageThumbnailExtractor(ThumbnailExtractor):
                 # Get original dimensions before creating thumbnail
                 width, height = img.size
                 img.thumbnail((self.size, self.size))
-                img.save(thumbnail_path, "JPEG")
+                img.save(thumbnail_path, "WEBP")
         except (UnidentifiedImageError, OSError) as e:
             raise Http404(f"Error processing image: {e}")
 
@@ -97,13 +97,11 @@ class ImageThumbnailExtractor(ThumbnailExtractor):
 class VideoThumbnailExtractor(ThumbnailExtractor):
     """Thumbnail extractor for video files."""
 
-    SUPPORTED_EXTENSIONS = [".mp4", ".mov", ".avi", ".mkv"]
-
     @classmethod
     def can_handle(cls, filename: str) -> bool:
         """Check if this extractor can handle the given filename."""
         ext = Path(filename).suffix.lower()
-        return ext in cls.SUPPORTED_EXTENSIONS
+        return ext in MOVIE_EXTENSIONS
 
     def extract_thumbnail(self, original_path: Path) -> tuple:
         """
@@ -142,7 +140,7 @@ class VideoThumbnailExtractor(ThumbnailExtractor):
             for frame in container.decode(video_stream):
                 img = frame.to_image()
                 img.thumbnail((self.size, self.size))
-                img.save(thumbnail_path, "JPEG")
+                img.save(thumbnail_path, "WEBP")
                 break
             container.close()
 

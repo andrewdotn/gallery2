@@ -1,0 +1,4 @@
+IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".png", ".heic", ".webp")
+MOVIE_EXTENSIONS = (".mov",)
+
+MEDIA_EXTENSIONS = IMAGE_EXTENSIONS + MOVIE_EXTENSIONS
