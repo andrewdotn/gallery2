@@ -193,3 +193,28 @@ def entry_original(request, entry_id):
         content_type = "application/octet-stream"  # Default
 
     return FileResponse(open(original_path, "rb"), content_type=content_type)
+
+
+def entry_video(request, entry_id):
+    entry = get_object_or_404(Entry, pk=entry_id)
+    gallery = entry.gallery
+
+    video_filename = None
+    for filename in entry.filenames:
+        if filename.lower().endswith(".mov"):
+            video_path = Path(gallery.directory) / filename
+            if video_path.exists():
+                video_filename = filename
+                break
+
+    if not video_filename:
+        raise Http404(f"No video file found for entry {entry_id}")
+
+    video_path = Path(gallery.directory) / video_filename
+
+    # Determine content type using Python's mimetypes module
+    content_type, encoding = mimetypes.guess_type(video_filename)
+    if content_type is None:
+        content_type = "application/octet-stream"  # Default
+
+    return FileResponse(open(video_path, "rb"), content_type=content_type)

@@ -35,8 +35,8 @@
                 {% endif %}
                 {% if entry.filenames|has_video %}
                   <div class="text-center mt-2">
-                    <button class="btn btn-primary play-video-btn" data-entry-id="{{ entry.id }}" data-video-filename="{{ entry.filenames|get_video_filename }}">
-                      Play Video
+                    <button class="btn btn-outline-secondary play-video-btn" data-entry-id="{{ entry.id }}" data-video-filename="{{ entry.filenames|get_video_filename }}">
+                      play
                     </button>
                   </div>
                 {% endif %}

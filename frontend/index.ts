@@ -361,7 +361,7 @@ function setupVideoPlayButtons() {
 
       // Create a source element
       const sourceElement = document.createElement('source');
-      sourceElement.src = `/gallery/entry/${entryId}/original`;
+      sourceElement.src = `/gallery/entry/${entryId}/video`;
       sourceElement.type = 'video/quicktime'; // Assuming .mov file
 
       // Add the source to the video

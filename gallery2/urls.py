@@ -30,4 +30,9 @@ urlpatterns = [
         views.entry_original,
         name="entry_original",
     ),
+    path(
+        "entry/<int:entry_id>/video/",
+        views.entry_video,
+        name="entry_video",
+    ),
 ]
