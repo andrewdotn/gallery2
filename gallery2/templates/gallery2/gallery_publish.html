@@ -39,9 +39,11 @@
                                 {% endif %}
                             </div>
                             <div class="col-md-3">
-                                {% if entry.timestamp %}
-                                    <div>{{ entry.timestamp }}</div>
-                                {% endif %}
+                                <div>{{ entry.timestamp }}
+                                  {% if entry.has_video %}
+                                    ⏵
+                                  {% endif %}
+                                </div>
                                 <div>{{ entry.caption|markdown_to_html }}</div>
                             </div>
                         </div>

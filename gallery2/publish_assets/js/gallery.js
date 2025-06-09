@@ -1,9 +1,9 @@
-document.addEventListener('DOMContentLoaded', function() {
-    // Find all images with data-has-video attribute
+function start() {
+// Find all images with data-has-video attribute
     const imagesWithVideo = document.querySelectorAll('img[data-has-video="true"]');
 
     imagesWithVideo.forEach(img => {
-        img.addEventListener('click', function() {
+        img.addEventListener('click', function () {
             const videoFilename = `media/${this.getAttribute('data-video-filename')}`;
 
             // Create video element
@@ -20,9 +20,17 @@ document.addEventListener('DOMContentLoaded', function() {
             container.replaceChild(video, this);
 
             // Add event listener to go back to image when video ends
-            video.addEventListener('ended', function() {
+            video.addEventListener('ended', function () {
                 container.replaceChild(img, video);
             });
         });
-    });
-});
+    })
+}
+
+// DOMContentLoaded might not fire with an async script
+// https://stackoverflow.com/questions/39993676/code-inside-domcontentloaded-event-not-working
+if (document.readyState !== "loading") {
+  start();
+} else {
+  document.addEventListener("DOMContentLoaded", start);
+}
