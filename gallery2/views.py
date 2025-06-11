@@ -16,9 +16,9 @@ from .thumbnails import (
     VideoThumbnailExtractor,
 )
 
-# Register additional MIME types that might not be in the default database
 mimetypes.add_type("image/heic", ".heic")
 mimetypes.add_type("video/quicktime", ".mov")
+mimetypes.add_type("image/webp", ".webp")
 
 
 class GalleryListView(ListView):
@@ -68,7 +68,7 @@ def entry_thumbnail(request, entry_id, size=800, hidden_thumbnail_size=100):
 
     # Check if thumbnail already exists
     thumbnail_path = extractor.get_thumbnail_path()
-    if not extractor.thumbnail_exists():
+    if not thumbnail_path.exists():
         # Find the first file that the extractor can handle
         original_filename = None
         for filename in entry.filenames:
@@ -90,15 +90,9 @@ def entry_thumbnail(request, entry_id, size=800, hidden_thumbnail_size=100):
         if not original_path.exists():
             raise Http404(f"Original file not found: {original_path}")
 
-        # Extract the thumbnail and get dimensions
-        thumbnail_path, width, height = extractor.extract_thumbnail(original_path)
+        thumbnail_path = extractor.get_thumbnail(original_path)
 
-        if entry.width != width or entry.height != height:
-            entry.width = width
-            entry.height = height
-            entry.save()
-
-    return FileResponse(open(thumbnail_path, "rb"), content_type="image/jpeg")
+    return FileResponse(open(thumbnail_path, "rb"))
 
 
 @require_http_methods(["POST"])

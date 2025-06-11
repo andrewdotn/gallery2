@@ -13,6 +13,7 @@ from django.conf import settings
 from django.http import Http404
 
 from gallery2.files import IMAGE_EXTENSIONS, MOVIE_EXTENSIONS
+from gallery2.models import Entry
 
 
 class ThumbnailExtractor:
@@ -21,6 +22,7 @@ class ThumbnailExtractor:
     def __init__(self, gallery_id: int, entry_id: int, size: int = 500):
         self.gallery_id = gallery_id
         self.entry_id = entry_id
+        self.entry = Entry.objects.get(gallery_id=gallery_id, id=entry_id)
         self.size = size
         self.thumbnails_dir = Path(settings.MEDIA_ROOT) / "thumbnails"
         os.makedirs(self.thumbnails_dir, exist_ok=True)
@@ -31,26 +33,32 @@ class ThumbnailExtractor:
         )
         return self.thumbnails_dir / thumbnail_filename
 
-    def thumbnail_exists(self) -> bool:
-        return self.get_thumbnail_path().exists()
+    def _thumbnail_exists(self, original_path) -> bool:
+        try:
+            stat = original_path.stat()
+            if self.entry.mtimes and stat.st_mtime in self.entry.mtimes:
+                return True
+            else:
+                return False
+        except FileNotFoundError:
+            return False
 
-    def extract_thumbnail(self, original_path) -> tuple:
-        """
-        Extract a thumbnail from the original file.
+    def get_thumbnail(self, path):
+        if not self._thumbnail_exists(path):
+            self._extract_thumbnail(path)
+        return self.get_thumbnail_path()
 
-        Args:
-            original_path: Path to the original file
-
-        Returns:
-            Tuple containing:
-                - Path to the generated thumbnail
-                - Original width
-                - Original height
-
-        Raises:
-            NotImplementedError: This method must be implemented by subclasses
-        """
+    def _extract_thumbnail(self, original_path) -> tuple:
         raise NotImplementedError("Subclasses must implement extract_thumbnail")
+
+    def _save_thumb_meta(self, width, height):
+        new_mtimes = []
+        for p in self.entry.filenames:
+            new_mtimes.append(os.stat(Path(self.entry.gallery.directory) / p).st_mtime)
+        self.entry.mtimes = new_mtimes
+        self.entry.width = width
+        self.entry.height = height
+        self.entry.save()
 
 
 class ImageThumbnailExtractor(ThumbnailExtractor):
@@ -62,36 +70,16 @@ class ImageThumbnailExtractor(ThumbnailExtractor):
         ext = Path(filename).suffix.lower()
         return ext in IMAGE_EXTENSIONS
 
-    def extract_thumbnail(self, original_path: Path) -> tuple:
-        """
-        Extract a thumbnail from an image file.
-
-        Args:
-            original_path: Path to the original image file
-
-        Returns:
-            Tuple containing:
-                - Path to the generated thumbnail
-                - Original image width
-                - Original image height
-
-        Raises:
-            Http404: If the image cannot be processed
-        """
+    def _extract_thumbnail(self, original_path: Path) -> tuple:
         thumbnail_path = self.get_thumbnail_path()
-        width = None
-        height = None
 
-        try:
-            with Image.open(original_path) as img:
-                # Get original dimensions before creating thumbnail
-                width, height = img.size
-                img.thumbnail((self.size, self.size))
-                img.save(thumbnail_path, "WEBP", quality=90)
-        except (UnidentifiedImageError, OSError) as e:
-            raise Http404(f"Error processing image: {e}")
+        with Image.open(original_path) as img:
+            # Get original dimensions before creating thumbnail
+            width, height = img.size
+            img.thumbnail((self.size, self.size))
+            img.save(thumbnail_path, "WEBP", quality=90)
 
-        return thumbnail_path, width, height
+        self._save_thumb_meta(width=width, height=height)
 
 
 class VideoThumbnailExtractor(ThumbnailExtractor):
@@ -103,51 +91,29 @@ class VideoThumbnailExtractor(ThumbnailExtractor):
         ext = Path(filename).suffix.lower()
         return ext in MOVIE_EXTENSIONS
 
-    def extract_thumbnail(self, original_path: Path) -> tuple:
-        """
-        Extract a thumbnail from a video file.
-
-        Args:
-            original_path: Path to the original video file
-
-        Returns:
-            Tuple containing:
-                - Path to the generated thumbnail
-                - Original video width
-                - Original video height
-
-        Raises:
-            Http404: If the video cannot be processed
-        """
+    def _extract_thumbnail(self, original_path: Path) -> tuple:
         thumbnail_path = self.get_thumbnail_path()
-        width = None
-        height = None
 
-        try:
-            container = av.open(str(original_path))
-            video_stream = next(s for s in container.streams if s.type == "video")
+        container = av.open(str(original_path))
+        video_stream = next(s for s in container.streams if s.type == "video")
 
-            # Get original dimensions
-            width = video_stream.width
-            height = video_stream.height
+        width = video_stream.width
+        height = video_stream.height
 
-            THUMBNAIL_POSITION = 0.1  # 10% in
-            duration = float(container.duration) / av.time_base
-            seek_position = int(duration * THUMBNAIL_POSITION)
+        THUMBNAIL_POSITION = 0.1  # 10% in
+        duration = float(container.duration) / av.time_base
+        seek_position = int(duration * THUMBNAIL_POSITION)
 
-            container.seek(seek_position, stream=video_stream)
+        container.seek(seek_position, stream=video_stream)
 
-            for frame in container.decode(video_stream):
-                img = frame.to_image()
-                img.thumbnail((self.size, self.size))
-                img.save(thumbnail_path, "WEBP", quality=90)
-                break
-            container.close()
+        for frame in container.decode(video_stream):
+            img = frame.to_image()
+            img.thumbnail((self.size, self.size))
+            img.save(thumbnail_path, "WEBP", quality=90)
+            break
+        container.close()
 
-        except Exception as e:
-            raise Http404(f"Error processing video: {e}")
-
-        return thumbnail_path, width, height
+        self._save_thumb_meta(width=width, height=height)
 
 
 def get_thumbnail_extractor(

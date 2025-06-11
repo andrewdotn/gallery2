@@ -64,7 +64,7 @@ class Command(BaseCommand):
 
         # Process each entry
         published_entries = []
-        for entry in entries:
+        for i, entry in enumerate(entries):
             self.stdout.write(f"Processing entry: {entry.basename}")
 
             # Find both image and video files
@@ -101,7 +101,7 @@ class Command(BaseCommand):
             extension = primary_file.suffix.lower()
 
             # Copy primary file to publish/media directory
-            dest_filename = Path(f"{entry.id}{extension}")
+            dest_filename = Path(f"{i:04d}{extension}")
             dest_path = media_path / dest_filename
 
             # For images, use thumbnail instead of original file
@@ -109,13 +109,7 @@ class Command(BaseCommand):
                 # Create thumbnail extractor
                 thumbnail_extractor = ImageThumbnailExtractor(gallery.id, entry.id, 800)
 
-                # Generate thumbnail if it doesn't exist
-                if not thumbnail_extractor.thumbnail_exists():
-                    thumbnail_path, _, _ = thumbnail_extractor.extract_thumbnail(
-                        primary_file
-                    )
-                else:
-                    thumbnail_path = thumbnail_extractor.get_thumbnail_path()
+                thumbnail_path = thumbnail_extractor.get_thumbnail(primary_file)
 
                 dest_filename = dest_filename.with_suffix(".webp")
                 dest_path = dest_path.with_suffix(".webp")
@@ -134,7 +128,7 @@ class Command(BaseCommand):
             video_filename = None
             if video_file:
                 video_extension = video_file.suffix.lower()
-                video_dest_filename = f"{entry.id}_video{video_extension}"
+                video_dest_filename = f"{i:04d}_video{video_extension}"
                 video_dest_path = media_path / video_dest_filename
 
                 if image_file:
