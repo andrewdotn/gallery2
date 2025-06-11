@@ -66,31 +66,26 @@ def entry_thumbnail(request, entry_id, size=800, hidden_thumbnail_size=100):
             f"No suitable thumbnail extractor found for files: {entry.filenames}"
         )
 
-    # Check if thumbnail already exists
-    thumbnail_path = extractor.get_thumbnail_path()
-    if not thumbnail_path.exists():
-        # Find the first file that the extractor can handle
-        original_filename = None
-        for filename in entry.filenames:
-            # Use the extractor's can_handle method to find a suitable file
-            if (
-                isinstance(extractor, ImageThumbnailExtractor)
-                and ImageThumbnailExtractor.can_handle(filename)
-            ) or (
-                isinstance(extractor, VideoThumbnailExtractor)
-                and VideoThumbnailExtractor.can_handle(filename)
-            ):
-                original_filename = filename
-                break
+    original_filename = None
+    for filename in entry.filenames:
+        if (
+            isinstance(extractor, ImageThumbnailExtractor)
+            and ImageThumbnailExtractor.can_handle(filename)
+        ) or (
+            isinstance(extractor, VideoThumbnailExtractor)
+            and VideoThumbnailExtractor.can_handle(filename)
+        ):
+            original_filename = filename
+            break
 
-        if not original_filename:
-            raise Http404(f"No suitable file found for thumbnail extraction")
+    if not original_filename:
+        raise Http404(f"No suitable file found for thumbnail extraction")
 
-        original_path = Path(gallery.directory) / original_filename
-        if not original_path.exists():
-            raise Http404(f"Original file not found: {original_path}")
+    original_path = Path(gallery.directory) / original_filename
+    if not original_path.exists():
+        raise Http404(f"Original file not found: {original_path}")
 
-        thumbnail_path = extractor.get_thumbnail(original_path)
+    thumbnail_path = extractor.get_thumbnail(original_path)
 
     return FileResponse(open(thumbnail_path, "rb"))
 

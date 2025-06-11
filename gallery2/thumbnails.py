@@ -34,13 +34,13 @@ class ThumbnailExtractor:
         return self.thumbnails_dir / thumbnail_filename
 
     def _thumbnail_exists(self, original_path) -> bool:
-        try:
-            stat = original_path.stat()
-            if self.entry.mtimes and stat.st_mtime in self.entry.mtimes:
-                return True
-            else:
-                return False
-        except FileNotFoundError:
+        if not self.get_thumbnail_path().exists():
+            return False
+
+        stat = original_path.stat()
+        if self.entry.mtimes and stat.st_mtime in self.entry.mtimes:
+            return True
+        else:
             return False
 
     def get_thumbnail(self, path):
