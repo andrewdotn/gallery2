@@ -125,12 +125,12 @@ def test_width_height_attributes(db, client, tmpdir):
     """
     # Create a temporary directory for the test gallery
     # Create a 900x600 blue PNG image
-    image_path = os.path.join(tmpdir, "blue_test.png")
+    image_path = tmpdir / "blue_test.png"
     img = Image.new("RGB", (900, 600), color="blue")
     img.save(image_path)
 
     # Create a gallery with the temporary directory
-    gallery = Gallery.objects.create(name="Width Height Test Gallery", directory=tmpdir)
+    gallery = Gallery.objects.create(name="test", directory=tmpdir)
 
     # Create an entry for the image
     entry = Entry.objects.create(

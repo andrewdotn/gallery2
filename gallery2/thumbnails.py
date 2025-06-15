@@ -14,6 +14,7 @@ from django.http import Http404
 
 from gallery2.files import IMAGE_EXTENSIONS, MOVIE_EXTENSIONS
 from gallery2.models import Entry
+from hdr.hdr_jpg_thumb import HdrHeicImage
 
 
 class ThumbnailExtractor:
@@ -27,14 +28,16 @@ class ThumbnailExtractor:
         self.thumbnails_dir = Path(settings.MEDIA_ROOT) / "thumbnails"
         os.makedirs(self.thumbnails_dir, exist_ok=True)
 
-    def get_thumbnail_path(self) -> Path:
-        thumbnail_filename = (
-            f"gallery_{self.gallery_id}_entry_{self.entry_id}_thumb_{self.size}.webp"
-        )
-        return self.thumbnails_dir / thumbnail_filename
+    def _thumbnail_path_name(self, suffix):
+        return (
+            self.thumbnails_dir
+            / f"gallery_{self.gallery_id}_entry_{self.entry_id}_thumb_{self.size}"
+        ).with_suffix(suffix)
 
     def _thumbnail_exists(self, original_path) -> bool:
-        if not self.get_thumbnail_path().exists():
+        if not self.entry.main_thumbnail_path:
+            return False
+        if not (self.thumbnails_dir / self.entry.main_thumbnail_path).exists():
             return False
 
         stat = original_path.stat()
@@ -46,18 +49,23 @@ class ThumbnailExtractor:
     def get_thumbnail(self, path):
         if not self._thumbnail_exists(path):
             self._extract_thumbnail(path)
-        return self.get_thumbnail_path()
+        return self.thumbnails_dir / self.entry.main_thumbnail_path
 
-    def _extract_thumbnail(self, original_path) -> tuple:
+    def _extract_thumbnail(self, original_path):
         raise NotImplementedError("Subclasses must implement extract_thumbnail")
 
-    def _save_thumb_meta(self, width, height):
+    def _save_thumb_meta(self, width, height, thumbnail_path):
+        print("saved", self.entry.id, "thumbnail", thumbnail_path)
         new_mtimes = []
         for p in self.entry.filenames:
             new_mtimes.append(os.stat(Path(self.entry.gallery.directory) / p).st_mtime)
         self.entry.mtimes = new_mtimes
         self.entry.width = width
         self.entry.height = height
+        if thumbnail_path is not None:
+            self.entry.main_thumbnail_path = thumbnail_path.relative_to(
+                self.thumbnails_dir
+            )
         self.entry.save()
 
 
@@ -71,15 +79,28 @@ class ImageThumbnailExtractor(ThumbnailExtractor):
         return ext in IMAGE_EXTENSIONS
 
     def _extract_thumbnail(self, original_path: Path) -> tuple:
-        thumbnail_path = self.get_thumbnail_path()
+        saved = False
+        if original_path.suffix.lower() == ".heic":
+            im = HdrHeicImage(original_path)
+            width, height = im.width, im.height
 
-        with Image.open(original_path) as img:
-            # Get original dimensions before creating thumbnail
-            width, height = img.size
-            img.thumbnail((self.size, self.size))
-            img.save(thumbnail_path, "WEBP", quality=90)
+            if im.get_headroom() is not None and im.gain_map():
+                thumbnail_path = self._thumbnail_path_name(".jpg")
 
-        self._save_thumb_meta(width=width, height=height)
+                jpeg_bytes = im.to_jpeg(max_size=self.size)
+                thumbnail_path.write_bytes(jpeg_bytes)
+                saved = True
+
+        if not saved:
+            with Image.open(original_path) as img:
+                thumbnail_path = self._thumbnail_path_name(".webp")
+
+                # Get original dimensions before creating thumbnail
+                width, height = img.size
+                img.thumbnail((self.size, self.size))
+                img.save(thumbnail_path, "WEBP", quality=90)
+
+        self._save_thumb_meta(width=width, height=height, thumbnail_path=thumbnail_path)
 
 
 class VideoThumbnailExtractor(ThumbnailExtractor):
@@ -92,7 +113,7 @@ class VideoThumbnailExtractor(ThumbnailExtractor):
         return ext in MOVIE_EXTENSIONS
 
     def _extract_thumbnail(self, original_path: Path) -> tuple:
-        thumbnail_path = self.get_thumbnail_path()
+        thumbnail_path = self._thumbnail_path_name(".webp")
 
         container = av.open(str(original_path))
         video_stream = next(s for s in container.streams if s.type == "video")
@@ -113,7 +134,7 @@ class VideoThumbnailExtractor(ThumbnailExtractor):
             break
         container.close()
 
-        self._save_thumb_meta(width=width, height=height)
+        self._save_thumb_meta(width=width, height=height, thumbnail_path=thumbnail_path)
 
 
 def get_thumbnail_extractor(

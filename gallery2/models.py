@@ -24,6 +24,7 @@ class Entry(models.Model):
     hidden = models.BooleanField(default=False)
     width = models.IntegerField(null=True, blank=True)
     height = models.IntegerField(null=True, blank=True)
+    main_thumbnail_path = models.CharField(null=True, blank=True)
 
     class Meta:
         unique_together = ("gallery", "order")
