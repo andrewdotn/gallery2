@@ -22,3 +22,42 @@ straight hours?
 
 [django-boilerplate]: https://github.com/andrewdotn/django-boilerplate
 [Junie]: https://www.jetbrains.com/junie/
+
+## Tips
+
+### Exporting edited live photos
+
+If you have an apple ‘live photo’ in Photos.app, the normal ‘export’ option
+just gives you a still image, and ‘export unmodified original’ ignores your
+edits such as cropping.
+
+However [osxphotos] can do this. Here’s the command line I use to re-export
+a single image:
+
+    osxphotos export --ignore-exportdb --overwrite \
+        --skip-original-if-edited --edited-suffix '' \
+        --name IMG_1234.HEIC --year 2025 \
+        .
+
+[osxphotos]: https://github.com/RhetTbull/osxphotos
+
+### Saving HDR files from Photoshop
+
+I haven’t implemented HDR for thumbnails yet. But trying to enable an HDR
+workflow for edits in anticipation of that, edits beyond what Photos.app
+can do—
+
+  - Recent photoshop can open HDR .HEIC images via Camera Raw. Imported
+    into photoshop keeps them HDR as long as you edit in 32-bit mode with
+    some of the corresponding limitations for that. See [this
+    guide][gregbenz-hdr] for some tips.
+
+      - You might need to flip Settings → Technology Previews → Precise
+        Color Management for HDR Display.
+
+      - Also see Camera Raw → Settings icon in upper right → File Handling
+        → JPEG, HEIC, and TIFF Handling
+
+  - All the apparently-useful export options in photoshop seem to lose the
+    HDR, *except* Filter → Camera Raw Filter → the “Convert and Save Image”
+    in the upper-right corner to save as HDR-aware JPG or AVIF.
