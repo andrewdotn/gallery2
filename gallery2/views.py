@@ -217,7 +217,7 @@ def entry_video(request, entry_id):
 def remux_if_necessary(entry, path):
     """Chrome can’t handle raw .mov files … and we want to strip metadata anyway."""
     if not path.suffix.lower() in [".mov", ".mp4"]:
-        return
+        return path
 
     REMUX_DIR = settings.MEDIA_ROOT / "video"
 

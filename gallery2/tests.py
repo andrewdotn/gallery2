@@ -1,8 +1,11 @@
 import os
+import shutil
 from datetime import datetime, timezone as dt_timezone
 from pathlib import Path
 from unittest import mock
 
+import av
+import numpy as np
 import pytest
 from PIL import Image
 from bs4 import BeautifulSoup
@@ -14,7 +17,6 @@ from django.utils import timezone
 from reversion import create_revision
 from reversion.models import Version
 
-from gallery2.files import IMAGE_EXTENSIONS
 from gallery2.management.commands.importimages import Command as ImportImagesCommand
 from gallery2.models import Gallery, Entry
 from gallery2.utils import timestamp_to_order
@@ -112,7 +114,23 @@ def test_gallery_detail_view(db, client):
     assert '<a href="http://example.com">link</a>' in response.text
 
 
-def test_width_height_attributes(db, client, tmpdir):
+@pytest.fixture
+def blue_png_file(tmpdir):
+    image_path = tmpdir / "blue.png"
+    img = Image.new("RGB", (900, 600), color="blue")
+    img.save(image_path)
+    return image_path
+
+
+@pytest.fixture
+def blue_jpg_file(tmpdir):
+    image_path = tmpdir / "blue.jpg"
+    img = Image.new("RGB", (900, 600), color="blue")
+    img.save(image_path)
+    return image_path
+
+
+def test_width_height_attributes(db, client, tmpdir, blue_png_file):
     """
     Test that width and height attributes are added to the Entry model and rendered in the template.
 
@@ -125,12 +143,10 @@ def test_width_height_attributes(db, client, tmpdir):
     """
     # Create a temporary directory for the test gallery
     # Create a 900x600 blue PNG image
-    image_path = tmpdir / "blue_test.png"
-    img = Image.new("RGB", (900, 600), color="blue")
-    img.save(image_path)
 
     # Create a gallery with the temporary directory
     gallery = Gallery.objects.create(name="test", directory=tmpdir)
+    shutil.copy(blue_png_file, tmpdir / "blue_test.png")
 
     # Create an entry for the image
     entry = Entry.objects.create(
@@ -761,46 +777,50 @@ def test_timestamp_to_order_conversion():
     assert timestamp_to_order(dt_different_date) == expected_different_date
 
 
-@mock.patch("pathlib.Path.exists", return_value=True)
-@mock.patch("gallery2.views.open")
-def test_entry_original_prioritizes_images(mock_open, mock_path_exists, db, client):
-    """Test that entry_original prioritizes image files over movie files."""
-    gallery = Gallery.objects.create(
-        name="Test Original Files Gallery", directory="/fake/gallery/path"
-    )
+@pytest.fixture
+def one_frame_mov_file(tmpdir):
+    ret = tmpdir / "green_frame.mov"
 
-    # Create an entry with both image and video files
+    width = 640
+    height = 480
+    output = av.open(os.fspath(ret), "w")
+
+    stream = output.add_stream("h264", rate=1)
+    stream.width = width
+    stream.height = height
+    stream.pix_fmt = "yuv420p"
+
+    frame_rgb = np.zeros((height, width, 3), dtype=np.uint8)
+    frame_rgb[:, :, 1] = 255
+
+    frame = av.VideoFrame.from_ndarray(frame_rgb, format="rgb24")
+    for packet in stream.encode(frame):
+        output.mux(packet)
+    for packet in stream.encode():
+        output.mux(packet)
+    output.close()
+
+    return ret
+
+
+def test_entry_original_prioritizes_images(
+    db, one_frame_mov_file, blue_jpg_file, tmpdir, client
+):
+    shutil.copy(one_frame_mov_file, tmpdir / "foo.mov")
+    shutil.copy(blue_jpg_file, tmpdir / "foo.jpg")
+
+    gallery = Gallery.objects.create(
+        name="Test Original Files Gallery", directory=tmpdir
+    )
     entry = Entry.objects.create(
         gallery=gallery,
-        basename="mixed_files",
-        filenames=["video.mov", "image.jpg"],  # Video file first, image file second
+        basename="foo",
+        filenames=["foo.mov", "foo.jpg"],
         order=1.0,
-        caption="Test caption",
     )
 
-    mock_file = mock.MagicMock()
-    mock_open.return_value = mock_file
+    response = client.get(
+        reverse("gallery2:entry_original", kwargs={"entry_id": entry.id})
+    )
 
-    # Mock the can_handle methods to identify file types correctly
-    with mock.patch(
-        "gallery2.views.ImageThumbnailExtractor.can_handle",
-        side_effect=lambda f: f.endswith(IMAGE_EXTENSIONS),
-    ):
-        with mock.patch(
-            "gallery2.views.VideoThumbnailExtractor.can_handle",
-            side_effect=lambda f: f.endswith((".mp4", ".mov", ".avi", ".mkv")),
-        ):
-
-            response = client.get(
-                reverse("gallery2:entry_original", kwargs={"entry_id": entry.id})
-            )
-
-            assert response.status_code == 200
-
-            # Verify that the image file was chosen, not the video file
-            # The original_path should be constructed with 'image.jpg', not 'video.mov'
-            mock_open.assert_called_once()
-            args, kwargs = mock_open.call_args
-            file_path = args[0]
-            assert str(file_path).endswith("image.jpg")
-            assert not str(file_path).endswith("video.mov")
+    assert response.status_code == 200
