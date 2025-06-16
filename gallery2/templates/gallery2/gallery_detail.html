@@ -4,6 +4,7 @@
 
 
 {% block content %}
+<input id="csrftoken" type="hidden" value="{{ csrf_token }}">
 <div class="container">
   <h1>{{ gallery.name }}</h1>
 

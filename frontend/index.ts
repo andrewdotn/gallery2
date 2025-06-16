@@ -4,17 +4,7 @@ import { createRoot } from 'react-dom/client';
 
 // Function to get CSRF token from cookies
 function getCsrfToken(): string {
-  const name = 'csrftoken';
-  const value = `; ${document.cookie}`;
-  const parts = value.split(`; ${name}=`);
-  if (parts.length === 2) {
-    const cookiePart = parts.pop();
-    if (cookiePart) {
-      const cookieValue = cookiePart.split(';').shift();
-      return cookieValue || '';
-    }
-  }
-  return '';
+  return document.getElementById('csrftoken').value
 }
 
 
