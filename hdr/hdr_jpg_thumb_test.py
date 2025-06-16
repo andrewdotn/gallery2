@@ -84,7 +84,6 @@ def test_hdr_decode_fraction2(jpeg_sample_image, tmp_path):
 
     thumb_path = tmp_path / "sample-thumb.jpeg"
     thumb_path.write_bytes(jpeg_data)
-    print(thumb_path)
 
     assert np.sum(rgb >= 1.0) / np.size(rgb) * 100 == pytest.approx(47.5, 0.1)
 

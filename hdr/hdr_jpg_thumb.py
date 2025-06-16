@@ -169,7 +169,6 @@ class HdrSourceImage:
                     cwd=tmpdir,
                 )
                 config = config_file.read_text()
-                print("read config", config)
             else:
                 raise Exception("unsupported")
 
