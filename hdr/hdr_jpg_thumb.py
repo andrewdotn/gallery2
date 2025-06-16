@@ -1,3 +1,5 @@
+import base64
+import io
 import logging
 import os
 import subprocess
@@ -39,13 +41,29 @@ class ExifToolWrapper:
 exiftool_json = ExifToolWrapper().execute_json
 
 
-class HdrHeicImage:
-    def __init__(self, heic_path):
-        self._heic_path = heic_path
+class HdrSourceImage:
+    def __init__(self, image_path):
+        self._image_path = os.fspath(image_path)
 
-        self.im = Image.open(self._heic_path)
+        self.im = Image.open(self._image_path)
         self.width, self.height = self.im.size
         self.mode = self.im.mode
+
+    def file_is_supported(self):
+        if self._supported_heic():
+            return True
+        if self._supported_jpg():
+            return True
+        return False
+
+    def _supported_heic(self):
+        if self._image_path.lower().endswith(".heic"):
+            return self.get_headroom() is not None and self.gain_map() is not None
+
+    def _supported_jpg(self):
+        if any(self._image_path.lower().endswith(ext) for ext in (".jpg", ".jpeg")):
+            exif = exiftool_json("-b", "-MPImage2", self._image_path)
+            return exif[0].get("MPF:MPImage2")
 
     @cache
     def gain_map(self):
@@ -67,7 +85,9 @@ class HdrHeicImage:
         # background for requests for a pipe, rather than forking for every
         # image.
         exif_data = exiftool_json(
-            "-MakerNotes:HDRGain", "-MakerNotes:HDRHeadroom", os.fspath(self._heic_path)
+            "-MakerNotes:HDRGain",
+            "-MakerNotes:HDRHeadroom",
+            os.fspath(self._image_path),
         )
         gain = exif_data[0].get("MakerNotes:HDRGain")
         headroom = exif_data[0].get("MakerNotes:HDRHeadroom")
@@ -98,12 +118,8 @@ class HdrHeicImage:
         quality=90,
         gain_map_quality=70,
     ):
-        with TemporaryDirectory() as tmpdir:
-            headroom = self.get_headroom()
-            assert headroom is not None
-            gain_im = self.gain_map()
-            assert gain_im is not None
 
+        with TemporaryDirectory() as tmpdir:
             tmpdir = Path(tmpdir)
 
             base_path = tmpdir / "base.jpg"
@@ -112,18 +128,14 @@ class HdrHeicImage:
             base_im.save(base_path, quality=quality)
 
             gain_path = tmpdir / "gain.jpg"
-            gain_im = gain_im.copy()
-            gain_im.thumbnail(
-                (
-                    max_size // gain_map_resolution_divisor,
-                    max_size // gain_map_resolution_divisor,
-                )
-            )
-            gain_im.save(gain_path, quality=gain_map_quality)
 
-            config_path = tmpdir / "metadata.cfg"
-            config_path.write_text(
-                dedent(
+            if self._supported_heic():
+                headroom = self.get_headroom()
+                assert headroom is not None
+                gain_im = self.gain_map()
+                assert gain_im is not None
+
+                config = dedent(
                     f"""\
                     --maxContentBoost {headroom} {headroom} {headroom}
                     --minContentBoost 1.0 1.0 1.0
@@ -135,25 +147,60 @@ class HdrHeicImage:
                     --useBaseColorSpace 1\
                     """
                 )
+
+            elif gain_map_data := self._supported_jpg():
+                gain_map_data = gain_map_data.removeprefix("base64:")
+                gain_map_data = base64.b64decode(gain_map_data)
+                gain_im = Image.open(io.BytesIO(gain_map_data))
+                config_file = tmpdir / "out-config.cfg"
+
+                subprocess.check_call(
+                    [
+                        "ultrahdr_app",
+                        "-m",
+                        ULTRAHDR_APP_MODE_DECODE,
+                        "-j",
+                        self._image_path,
+                        "-f",
+                        config_file,
+                        "-z",
+                        "/dev/null",
+                    ],
+                    cwd=tmpdir,
+                )
+                config = config_file.read_text()
+                print("read config", config)
+            else:
+                raise Exception("unsupported")
+
+            gain_im = gain_im.copy()
+            gain_im.thumbnail(
+                (
+                    max_size // gain_map_resolution_divisor,
+                    max_size // gain_map_resolution_divisor,
+                )
             )
+            gain_im.save(gain_path, quality=gain_map_quality)
+
+            config_path = tmpdir / "metadata.cfg"
+            config_path.write_text(config)
 
             out_path = tmpdir / "out.jpg"
 
-            cmd = [
-                "ultrahdr_app",
-                "-m",
-                ULTRAHDR_APP_MODE_ENCODE,
-                "-i",
-                base_path.relative_to(tmpdir),
-                "-g",
-                gain_path.relative_to(tmpdir),
-                "-f",
-                config_path.relative_to(tmpdir),
-                "-z",
-                out_path.relative_to(tmpdir),
-            ]
             subprocess.check_call(
-                cmd,
+                [
+                    "ultrahdr_app",
+                    "-m",
+                    ULTRAHDR_APP_MODE_ENCODE,
+                    "-i",
+                    base_path.relative_to(tmpdir),
+                    "-g",
+                    gain_path.relative_to(tmpdir),
+                    "-f",
+                    config_path.relative_to(tmpdir),
+                    "-z",
+                    out_path.relative_to(tmpdir),
+                ],
                 cwd=tmpdir,
             )
             return out_path.read_bytes()

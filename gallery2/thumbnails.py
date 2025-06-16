@@ -14,7 +14,7 @@ from django.http import Http404
 
 from gallery2.files import IMAGE_EXTENSIONS, MOVIE_EXTENSIONS
 from gallery2.models import Entry
-from hdr.hdr_jpg_thumb import HdrHeicImage
+from hdr.hdr_jpg_thumb import HdrSourceImage
 
 
 class ThumbnailExtractor:
@@ -78,20 +78,14 @@ class ImageThumbnailExtractor(ThumbnailExtractor):
         ext = Path(filename).suffix.lower()
         return ext in IMAGE_EXTENSIONS
 
-    def _extract_thumbnail(self, original_path: Path) -> tuple:
-        saved = False
-        if original_path.suffix.lower() == ".heic":
-            im = HdrHeicImage(original_path)
+    def _extract_thumbnail(self, original_path):
+        im = HdrSourceImage(original_path.absolute())
+        if im.file_is_supported():
             width, height = im.width, im.height
-
-            if im.get_headroom() is not None and im.gain_map():
-                thumbnail_path = self._thumbnail_path_name(".jpg")
-
-                jpeg_bytes = im.to_jpeg(max_size=self.size)
-                thumbnail_path.write_bytes(jpeg_bytes)
-                saved = True
-
-        if not saved:
+            thumbnail_path = self._thumbnail_path_name(".jpg")
+            jpeg_bytes = im.to_jpeg(max_size=self.size)
+            thumbnail_path.write_bytes(jpeg_bytes)
+        else:
             with Image.open(original_path) as img:
                 thumbnail_path = self._thumbnail_path_name(".webp")
 
