@@ -548,7 +548,7 @@ def test_entry_thumbnail_no_files(mock_get_extractor, db, client):
     )
 
     assert response.status_code == 404
-    mock_get_extractor.assert_called_once_with([], gallery.id, entry.id, 800)
+    mock_get_extractor.assert_called_once_with([], gallery.id, entry.id, 1600)
 
 
 @pytest.mark.skip

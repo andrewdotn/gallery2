@@ -334,7 +334,6 @@ function setupVideoPlayButtons() {
       videoElement.width = imgWidth;
       videoElement.height = imgHeight;
       videoElement.style.maxWidth = '100%';
-      videoElement.loop = true;
 
       // Create a source element
       const sourceElement = document.createElement('source');

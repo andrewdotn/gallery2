@@ -98,7 +98,9 @@ class Command(BaseCommand):
             # For images, use thumbnail instead of original file
             if file_type == "image":
                 # Create thumbnail extractor
-                thumbnail_extractor = ImageThumbnailExtractor(gallery.id, entry.id, 800)
+                thumbnail_extractor = ImageThumbnailExtractor(
+                    gallery.id, entry.id, 1600
+                )
                 thumbnail_path = thumbnail_extractor.get_thumbnail(primary_file)
 
                 dest_filename = dest_filename.with_suffix(thumbnail_path.suffix)
@@ -114,7 +116,7 @@ class Command(BaseCommand):
                 assert video_file
 
                 extractor = VideoThumbnailExtractor(
-                    gallery_id=gallery.id, entry_id=entry.id, size=800
+                    gallery_id=gallery.id, entry_id=entry.id, size=1600
                 )
                 thumbnail_path = extractor.get_thumbnail(video_file)
 
@@ -166,17 +168,21 @@ class Command(BaseCommand):
         with open(publish_path / "index.html", "w") as f:
             f.write(html_content)
 
-        # Copy assets from publish_assets directory
         assets_source_path = Path(__file__).parent.parent.parent / "publish_assets"
 
-        # Create js directory and copy JS files
+        public_src = Path(gallery.directory) / "media" / "public"
+        public_publish_dir = media_path / "public"
+        os.makedirs(public_publish_dir, exist_ok=True)
+        for f in (public_src).glob("*"):
+            shutil.copy2(f, public_publish_dir)
+            self.stdout.write(f"  Copied {f.name} to {public_publish_dir}")
+
         js_dir = publish_path / "js"
         os.makedirs(js_dir, exist_ok=True)
         for js_file in (assets_source_path / "js").glob("*.js"):
             shutil.copy2(js_file, js_dir)
             self.stdout.write(f"  Copied {js_file.name} to {js_dir}")
 
-        # Create css directory and copy CSS files
         css_dir = publish_path / "css"
         os.makedirs(css_dir, exist_ok=True)
         for css_file in (assets_source_path / "css").glob("*.css"):

@@ -9,6 +9,10 @@ Very much a work-in-progress, bad UI, but basic functionality is there.
  3. Click into gallery and add captions in browser.
  4. Re-order images by using the Admin button :/
  5. Then `./manage.py buildgallery` to emit standalone html in the `publish` folder.
+ 6. If you want extra files, like images to use in the text that aren’t
+    entries, put them in `media/public` in the gallery directory, and
+    they’ll work in the editor and also be copied over to the publish
+    directory.
 
 I guess the main new features over GalleryMaker are:
   - Supports video

@@ -93,7 +93,7 @@ class HdrHeicImage:
 
     def to_jpeg(
         self,
-        max_size=800,
+        max_size=1600,
         gain_map_resolution_divisor=2,
         quality=90,
         gain_map_quality=70,

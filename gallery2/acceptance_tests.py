@@ -36,6 +36,10 @@ def test_buildgallery2(db, tmpdir, blue_jpg_file, blue_png_file, one_frame_mov_f
     src_dir.mkdir()
     g = Gallery.objects.create(name="test1", directory=src_dir)
 
+    test_file = src_dir / "media" / "public" / "hello.txt"
+    test_file.parent.mkdir()
+    test_file.write_text("hello\n")
+
     shutil.copy(blue_jpg_file, src_dir / "e1.jpg")
     e_jpg = Entry.objects.create(
         gallery=g, order=1.0, basename="e1", filenames=["e1.jpg"], caption="*Item 1*"
@@ -70,6 +74,8 @@ def test_buildgallery2(db, tmpdir, blue_jpg_file, blue_png_file, one_frame_mov_f
     call_command(
         "buildgallery", str(g.id), "--output-dir", str(publish_dir), "--testing"
     )
+
+    assert Path(publish_dir / "media" / "public" / "hello.txt").read_text() == "hello\n"
 
     output_html = Path(publish_dir / "index.html").read_text()
     print(output_html)

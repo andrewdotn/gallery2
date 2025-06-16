@@ -35,4 +35,9 @@ urlpatterns = [
         views.entry_video,
         name="entry_video",
     ),
+    path(
+        "<int:gallery_id>/media/public/<path:filename>",
+        views.serve_public_media,
+        name="serve_public_media",
+    ),
 ]

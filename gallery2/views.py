@@ -46,7 +46,7 @@ class GalleryCreateView(CreateView):
     success_url = reverse_lazy("gallery2:gallery_list")
 
 
-def entry_thumbnail(request, entry_id, size=800, hidden_thumbnail_size=100):
+def entry_thumbnail(request, entry_id, size=1600, hidden_thumbnail_size=250):
     """
     Generate and serve a thumbnail for an entry.
 
@@ -150,6 +150,10 @@ def set_entry_hidden(request, entry_id):
         data = json.loads(request.body)
         if "hidden" not in data:
             return JsonResponse({"error": "'hidden' field is required"}, status=400)
+        if bool(data["hidden"]) != entry.hidden:
+            if entry.main_thumbnail_path:
+                Path(entry.main_thumbnail_path).unlink(missing_ok=True)
+            entry.main_thumbnail_path = None
         entry.hidden = bool(data["hidden"])
         entry.save()
         return JsonResponse({"id": entry.id, "hidden": entry.hidden})
@@ -259,3 +263,17 @@ def remux_if_necessary(entry, path):
             e2.save()
 
         return out_file
+
+
+def serve_public_media(request, gallery_id, filename):
+    if filename.startswith("."):
+        raise Http404("File not found")
+
+    gallery = Gallery.objects.get(pk=gallery_id)
+
+    file_path = Path(gallery.directory) / "media" / "public" / filename
+
+    if not file_path.exists() or not file_path.is_file():
+        raise Http404("File not found")
+
+    return FileResponse(open(file_path, "rb"))

@@ -29,3 +29,6 @@ class Entry(models.Model):
 
     class Meta:
         unique_together = ("gallery", "order")
+
+    def __str__(self):
+        return f"{self.id} {self.basename}"
