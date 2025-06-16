@@ -15,7 +15,9 @@
         {% if entries %}
             <div class="gallery-entries">
                 {% for entry in entries %}
-                    <div class="entry-container mb-4">
+                    <div class="entry-container mb-4" {% if testing %}
+                      data-entry-id="{{ entry.id }}"
+                    {% endif %}>
                         <div class="row flex align-items-start">
                            <div class="col-md-9 d-flex align-items-end">
                                  <div class="flex-fill">
@@ -25,24 +27,16 @@
                                     ⏵
                                  </div>
                                 {% endif %}
-                                {% if entry.width and entry.height %}
-                                    {% scale_dimensions entry.width entry.height 800 as scaled %}
-                                    <img src="media/{{ entry.filename }}"
-                                         width="{{ scaled.width }}"
-                                         height="{{ scaled.height }}"
-                                         class="img-fluid thumbnail"
-                                         loading="lazy"
-                                         {% if entry.has_video %}
-                                         data-has-video="true" 
-                                         data-video-filename="{{ entry.video_filename }}"
-                                         {% endif %}>
-                                {% else %}
-                                    <img src="media/{{ entry.filename }}"
-                                         {% if entry.has_video %}
-                                         data-has-video="true" 
-                                         data-video-filename="{{ entry.video_filename }}"
-                                         {% endif %}>
-                                {% endif %}
+                                {% scale_dimensions entry.width entry.height 800 as scaled %}
+                                <img src="media/{{ entry.filename }}"
+                                     width="{{ scaled.width }}"
+                                     height="{{ scaled.height }}"
+                                     class="img-fluid thumbnail"
+                                     loading="lazy"
+                                     {% if entry.has_video %}
+                                     data-has-video="true"
+                                     data-video-filename="media/{{ entry.video_filename }}"
+                                     {% endif %}>
                             </div>
                             <div class="col-md-3">
                                 <div class="h4">{% if entry.timestamp %}

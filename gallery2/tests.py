@@ -781,8 +781,8 @@ def test_timestamp_to_order_conversion():
 def one_frame_mov_file(tmpdir):
     ret = tmpdir / "green_frame.mov"
 
-    width = 640
-    height = 480
+    width = 1200
+    height = 800
     output = av.open(os.fspath(ret), "w")
 
     stream = output.add_stream("h264", rate=1)

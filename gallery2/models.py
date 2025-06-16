@@ -18,6 +18,7 @@ class Entry(models.Model):
     basename = models.CharField(max_length=DEFAULT_MAX_LENGTH)
     filenames = models.JSONField(default=list)
     mtimes = models.JSONField(default=list, null=True, blank=True)
+    video_mtimes = models.JSONField(default=list, null=True, blank=True)
     order = models.FloatField()
     caption = models.TextField(blank=True)
     timestamp = models.DateTimeField(null=True, blank=True)

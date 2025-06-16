@@ -3,7 +3,7 @@ function start() {
 
     imagesWithVideo.forEach(img => {
         img.addEventListener('click', function () {
-            const videoFilename = `media/${this.getAttribute('data-video-filename')}`;
+            const videoFilename = this.getAttribute('data-video-filename');
 
             const video = document.createElement('video');
             video.width = img.width;

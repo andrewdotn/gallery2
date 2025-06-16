@@ -223,7 +223,8 @@ def remux_if_necessary(entry, path):
 
     out_file = REMUX_DIR / f"{entry.id}.mp4"
     if out_file.exists():
-        return out_file
+        if entry.video_mtimes and path.stat().st_mtime in entry.video_mtimes:
+            return out_file
 
     if not REMUX_DIR.exists():
         REMUX_DIR.mkdir(exist_ok=True)
@@ -241,10 +242,20 @@ def remux_if_necessary(entry, path):
                 "copy",
                 "-vcodec",
                 "copy",
+                "-fflags",
+                "+fastseek",
+                "-movflags",
+                "faststart",
                 "out.mp4",
             ],
             cwd=tmpdir,
             stdin=subprocess.DEVNULL,
         )
         shutil.move(tmpdir / "out.mp4", out_file)
+
+        e2 = Entry.objects.get(pk=entry.id)
+        if path.stat().st_mtime not in e2.video_mtimes:
+            e2.video_mtimes.append(path.stat().st_mtime)
+            e2.save()
+
         return out_file

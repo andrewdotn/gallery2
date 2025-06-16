@@ -1,14 +1,15 @@
+import argparse
 import os
 import shutil
-import pathlib
+from argparse import BooleanOptionalAction
 from pathlib import Path
 
 from django.core.management.base import BaseCommand
 from django.template.loader import render_to_string
-from django.conf import settings
 
 from gallery2.models import Gallery, Entry
 from gallery2.thumbnails import ImageThumbnailExtractor, VideoThumbnailExtractor
+from gallery2.views import remux_if_necessary
 
 
 class Command(BaseCommand):
@@ -22,18 +23,15 @@ class Command(BaseCommand):
             default="../publish",
             help="Directory to output the published gallery (default: publish)",
         )
+        parser.add_argument(
+            "--testing",
+            help=argparse.SUPPRESS,
+            action=BooleanOptionalAction,
+            default=False,
+        )
 
-    def handle(self, *args, **options):
-        gallery_id = options["gallery_id"]
-        output_dir = options["output_dir"]
-
-        try:
-            gallery = Gallery.objects.get(pk=gallery_id)
-        except Gallery.DoesNotExist:
-            self.stderr.write(
-                self.style.ERROR(f"Gallery with ID {gallery_id} does not exist")
-            )
-            return
+    def handle(self, *args, gallery_id, output_dir, testing, **options):
+        gallery = Gallery.objects.get(pk=gallery_id)
 
         # Create publish directory (wipe if exists)
         publish_path = Path(output_dir)
@@ -41,13 +39,11 @@ class Command(BaseCommand):
             self.stdout.write(f"Removing existing directory: {publish_path}")
             shutil.rmtree(publish_path)
 
-        # Create publish directory and media subdirectory
         media_path = publish_path / "media"
         os.makedirs(media_path, exist_ok=True)
 
         self.stdout.write(f"Building gallery '{gallery.name}' to {publish_path}")
 
-        # Get all non-hidden entries with non-blank captions
         entries = (
             Entry.objects.filter(gallery=gallery, hidden=False)
             .exclude(caption="")
@@ -67,11 +63,9 @@ class Command(BaseCommand):
         for i, entry in enumerate(entries):
             self.stdout.write(f"Processing entry: {entry.basename}")
 
-            # Find both image and video files
             image_file = None
             video_file = None
 
-            # Find an image file
             for filename in entry.filenames:
                 if ImageThumbnailExtractor.can_handle(filename):
                     original_path = Path(gallery.directory) / filename
@@ -79,7 +73,6 @@ class Command(BaseCommand):
                         image_file = original_path
                         break
 
-            # Find a video file
             for filename in entry.filenames:
                 if VideoThumbnailExtractor.can_handle(filename):
                     original_path = Path(gallery.directory) / filename
@@ -97,10 +90,8 @@ class Command(BaseCommand):
             primary_file = image_file if image_file else video_file
             file_type = "image" if image_file else "video"
 
-            # Get file extension for primary file
             extension = primary_file.suffix.lower()
 
-            # Copy primary file to publish/media directory
             dest_filename = Path(f"{i:04d}{extension}")
             dest_path = media_path / dest_filename
 
@@ -108,11 +99,10 @@ class Command(BaseCommand):
             if file_type == "image":
                 # Create thumbnail extractor
                 thumbnail_extractor = ImageThumbnailExtractor(gallery.id, entry.id, 800)
-
                 thumbnail_path = thumbnail_extractor.get_thumbnail(primary_file)
 
-                dest_filename = dest_filename.with_suffix(".webp")
-                dest_path = dest_path.with_suffix(".webp")
+                dest_filename = dest_filename.with_suffix(thumbnail_path.suffix)
+                dest_path = dest_path.with_suffix(thumbnail_path.suffix)
 
                 # Copy the thumbnail instead of the original
                 shutil.copy2(thumbnail_path, dest_path)
@@ -120,45 +110,52 @@ class Command(BaseCommand):
                     f"  Copied thumbnail for {primary_file.name} to {dest_path}"
                 )
             else:
-                # For videos, keep copying the original file
-                shutil.copy2(primary_file, dest_path)
-                self.stdout.write(f"  Copied {primary_file.name} to {dest_path}")
+                # video-only file; generate a thumbnail and treat as image
+                assert video_file
 
-            # Copy secondary file if it exists
+                extractor = VideoThumbnailExtractor(
+                    gallery_id=gallery.id, entry_id=entry.id, size=800
+                )
+                thumbnail_path = extractor.get_thumbnail(video_file)
+
+                dest_filename = dest_filename.with_suffix(thumbnail_path.suffix)
+                dest_path = dest_path.with_suffix(thumbnail_path.suffix)
+                shutil.copy2(thumbnail_path, dest_path)
+                self.stdout.write(
+                    f"  Copied thumbnail for video {video_file.name} to {dest_path}"
+                )
+
             video_filename = None
             if video_file:
+                video_file = remux_if_necessary(entry, video_file)
+
                 video_extension = video_file.suffix.lower()
-                video_dest_filename = f"{i:04d}_video{video_extension}"
+                video_dest_filename = f"{i:04d}{video_extension}"
                 video_dest_path = media_path / video_dest_filename
 
-                if image_file:
-                    shutil.copy2(video_file, video_dest_path)
-                    self.stdout.write(
-                        f"  Copied {video_file.name} to {video_dest_path}"
-                    )
-                    video_filename = video_dest_filename
-                else:
-                    video_filename = dest_filename
+                shutil.copy2(video_file, video_dest_path)
+                self.stdout.write(f"  Copied {video_file.name} to {video_dest_path}")
+                video_filename = video_dest_filename
 
-            # Add entry to published entries list
+            # in case width, height filled in during thumbnail generation
+            entry.refresh_from_db()
             published_entries.append(
                 {
                     "id": entry.id,
-                    "basename": entry.basename,
+                    "filename": dest_filename,
+                    "has_image": bool(image_file),
+                    "has_video": bool(video_file),
+                    "video_filename": video_filename,
                     "caption": entry.caption,
                     "timestamp": entry.timestamp,
                     "width": entry.width,
                     "height": entry.height,
-                    "filename": dest_filename,
-                    "file_type": file_type,
-                    "has_video": bool(video_file),
-                    "video_filename": video_filename,
-                    "extension": extension,
                 }
             )
 
         # Render the template to index.html
         context = {
+            "testing": testing,
             "gallery": gallery,
             "entries": published_entries,
         }

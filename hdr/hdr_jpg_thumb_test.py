@@ -16,10 +16,12 @@ from .hdr_jpg_thumb import (
 
 TEST_DATA_DIR = Path(__file__).parent
 
+SAMPLE_HEIC_PATH = TEST_DATA_DIR / "sample-apple-image.heic"
+
 
 @pytest.fixture
 def sample_image():
-    return HdrHeicImage(TEST_DATA_DIR / "sample-apple-image.heic")
+    return HdrHeicImage(SAMPLE_HEIC_PATH)
 
 
 def test_image_size(sample_image):
