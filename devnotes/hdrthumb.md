@@ -33,3 +33,5 @@ I currently get the bright spots showing up as HDR, but:
         preserve HDR, it keeps the original gain map instead of resizing
         it.
           - Image I/O can read AVIF and WEBP, but not write them
+          - It’s possible <https://github.com/grapeot/AppleJPEGGainMap>
+            works, I found it after getting it working another way

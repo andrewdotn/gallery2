@@ -1,7 +1,11 @@
 import json
 import mimetypes
+import shutil
+import subprocess
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
+from django.conf import settings
 from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import get_object_or_404
 from django.urls import reverse_lazy
@@ -165,56 +169,82 @@ def entry_original(request, entry_id):
     gallery = entry.gallery
 
     # First try to find an image file
-    original_filename = None
+    found = None
     for filename in entry.filenames:
         if ImageThumbnailExtractor.can_handle(filename):
             original_path = Path(gallery.directory) / filename
             if original_path.exists():
-                original_filename = filename
+                found = original_path
                 break
 
     # If no image file is found, try to find a video file
-    if not original_filename:
+    if not found:
         for filename in entry.filenames:
             if VideoThumbnailExtractor.can_handle(filename):
                 original_path = Path(gallery.directory) / filename
                 if original_path.exists():
-                    original_filename = filename
+                    found = original_path
                     break
 
-    if not original_filename:
+    if not found:
         raise Http404(f"No original file found for entry {entry_id}")
 
-    original_path = Path(gallery.directory) / original_filename
+    found = remux_if_necessary(entry, found)
 
-    # Determine content type using Python's mimetypes module
-    content_type, encoding = mimetypes.guess_type(original_filename)
-    if content_type is None:
-        content_type = "application/octet-stream"  # Default
-
-    return FileResponse(open(original_path, "rb"), content_type=content_type)
+    return FileResponse(open(found, "rb"))
 
 
 def entry_video(request, entry_id):
     entry = get_object_or_404(Entry, pk=entry_id)
     gallery = entry.gallery
 
-    video_filename = None
+    found = None
     for filename in entry.filenames:
         if filename.lower().endswith(".mov"):
             video_path = Path(gallery.directory) / filename
             if video_path.exists():
-                video_filename = filename
+                found = filename
                 break
 
-    if not video_filename:
+    video_path = remux_if_necessary(entry, video_path)
+
+    if not found:
         raise Http404(f"No video file found for entry {entry_id}")
 
-    video_path = Path(gallery.directory) / video_filename
+    return FileResponse(open(video_path, "rb"))
 
-    # Determine content type using Python's mimetypes module
-    content_type, encoding = mimetypes.guess_type(video_filename)
-    if content_type is None:
-        content_type = "application/octet-stream"  # Default
 
-    return FileResponse(open(video_path, "rb"), content_type=content_type)
+def remux_if_necessary(entry, path):
+    """Chrome can’t handle raw .mov files … and we want to strip metadata anyway."""
+    if not path.suffix.lower() in [".mov", ".mp4"]:
+        return
+
+    REMUX_DIR = settings.MEDIA_ROOT / "video"
+
+    out_file = REMUX_DIR / f"{entry.id}.mp4"
+    if out_file.exists():
+        return out_file
+
+    if not REMUX_DIR.exists():
+        REMUX_DIR.mkdir(exist_ok=True)
+    with TemporaryDirectory() as tmpdir:
+        tmpdir = Path(tmpdir)
+        subprocess.check_call(
+            [
+                "ffmpeg",
+                "-hide_banner",
+                "-i",
+                path.absolute(),
+                "-map_metadata",
+                "-1",
+                "-acodec",
+                "copy",
+                "-vcodec",
+                "copy",
+                "out.mp4",
+            ],
+            cwd=tmpdir,
+            stdin=subprocess.DEVNULL,
+        )
+        shutil.move(tmpdir / "out.mp4", out_file)
+        return out_file

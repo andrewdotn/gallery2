@@ -1,5 +1,7 @@
+import logging
 import os
 import subprocess
+import threading
 from functools import cache
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -13,12 +15,28 @@ ULTRAHDR_APP_MODE_DECODE = "1"
 ULTRAHDR_APP_OUTPUT_TRANSFER_FUNCTION_LINEAR = "0"
 ULTRAHDR_APP_OUTPUT_COLOR_FORMAT_RGBAHALFFLOAT = "4"
 
+logger = logging.getLogger(__name__)
 
-@cache
-def exiftool():
-    e = ExifTool()
-    e.run()
-    return e
+
+class ExifToolWrapper:
+    def __init__(self):
+        self._exiftool = ExifTool()
+        self._running = False
+        self.lock = threading.Lock()
+
+    def execute_json(self, *query):
+        with self.lock:
+            if not self._running:
+                self._exiftool.run()
+                self._running = True
+            try:
+                return self._exiftool.execute_json(*query)
+            except Exception as e:
+                logger.exception(f"Failed on query {query!r}")
+                raise
+
+
+exiftool_json = ExifToolWrapper().execute_json
 
 
 class HdrHeicImage:
@@ -44,8 +62,11 @@ class HdrHeicImage:
 
     def get_headroom(self):
         # I tried, I really tried, but I could find no maintained python exif
-        # libraries that could correctly parse apple makernotes.
-        exif_data = exiftool().execute_json(
+        # libraries that could correctly parse apple makernotes. Even osxphotos
+        # just uses exiftool. At least this keeps only one copy running in the
+        # background for requests for a pipe, rather than forking for every
+        # image.
+        exif_data = exiftool_json(
             "-MakerNotes:HDRGain", "-MakerNotes:HDRHeadroom", os.fspath(self._heic_path)
         )
         gain = exif_data[0].get("MakerNotes:HDRGain")
