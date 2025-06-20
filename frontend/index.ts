@@ -60,6 +60,8 @@ function createCaptionEditor(entryId: number, initialCaption: string, htmlCaptio
       isEditing = false;
       // Update the HTML caption with the new data from the server
       htmlCaption = data.html_caption || htmlCaption;
+      // Update initialCaption to match the current caption
+      initialCaption = caption;
       // No need to reload the page, just re-render the component
     } catch (err) {
       error = err instanceof Error ? err.message : 'An unknown error occurred';

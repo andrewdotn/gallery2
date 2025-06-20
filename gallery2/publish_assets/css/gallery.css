@@ -1,10 +1,46 @@
 .video-indicator {
-    font-size: 300%;
+    font-size: 200%;
     color: gray;
-    margin-right: 0.5em;
+    display: inline;
+    vertical-align: sub;
 }
 
 .entry-container .caption blockquote {
     border-left: 4px solid #ccc;
     padding-left: 0.5em;
+}
+
+.entry-timestamp {
+    white-space: nowrap;
+}
+
+@media (min-width: 991px) {
+    .entry-timestamp-narrow {
+        display: none;
+    }
+}
+
+@media (max-width: 991px) {
+    .entry-timestamp-wide {
+        display: none;
+    }
+
+    .entry-container .row {
+        flex-direction: column;
+    }
+
+    .flex-fill {
+        display: none;
+    }
+
+    .entry-container .col-md-9,
+    .entry-container .col-md-3 {
+        width: 100%;
+        max-width: 100%;
+        flex: 0 0 100%;
+    }
+
+    .entry-container .col-md-3 {
+        margin-top: 1rem;
+    }
 }

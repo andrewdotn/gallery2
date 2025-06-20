@@ -1,3 +1,8 @@
+function isIOS() {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+           (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
 function start() {
     const imagesWithVideo = document.querySelectorAll('img[data-has-video="true"]');
 
@@ -9,11 +14,11 @@ function start() {
             video.width = img.width;
             video.height = img.height;
             video.src = videoFilename;
-            video.controls = true;
+            video.controls = !isIOS();
             video.autoplay = true;
             video.className = 'img-fluid';
+            video.playsInline = true;
 
-            // Replace the image with the video
             const container = this.parentNode;
             container.replaceChild(video, this);
 

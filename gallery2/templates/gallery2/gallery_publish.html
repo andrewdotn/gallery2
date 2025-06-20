@@ -19,14 +19,18 @@
                       data-entry-id="{{ entry.id }}"
                     {% endif %}>
                         <div class="row flex align-items-start">
+                            <div class="h5 entry-timestamp entry-timestamp-narrow">
+                              {% if entry.timestamp %}
+                              {{ entry.timestamp|timezone:"Europe/Amsterdam" }}
+                              {% else %}
+                              ~~~
+                              {% endif %}
+                              {% if entry.has_video %}
+                                <span class="video-indicator">&nbsp;⏵</span>
+                              {% endif %}
+                            </div>
                            <div class="col-md-9 d-flex align-items-end">
-                                 <div class="flex-fill">
-                                 </div>
-                                 {% if entry.has_video %}
-                                 <div class="video-indicator">
-                                    ⏵
-                                 </div>
-                                {% endif %}
+                                <div class="flex-fill"></div>
                                 {% scale_dimensions entry.width entry.height 800 as scaled %}
                                 <img src="media/{{ entry.filename }}"
                                      width="{{ scaled.width }}"
@@ -39,10 +43,14 @@
                                      {% endif %}>
                             </div>
                             <div class="col-md-3">
-                                <div class="h4">{% if entry.timestamp %}
+                                <div class="h5 entry-timestamp entry-timestamp-wide">
+                                  {% if entry.timestamp %}
                                   {{ entry.timestamp|timezone:"Europe/Amsterdam" }}
                                   {% else %}
-                                  ~~~
+                                    ~~~
+                                  {% endif %}
+                                  {% if entry.has_video %}
+                                    <span class="video-indicator">&nbsp;⏵</span>
                                   {% endif %}
                                 </div>
                                 <div class=caption>{{ entry.caption|markdown_to_html }}</div>
