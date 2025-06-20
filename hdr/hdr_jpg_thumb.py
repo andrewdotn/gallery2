@@ -49,6 +49,9 @@ class HdrSourceImage:
         self.width, self.height = self.im.size
         self.mode = self.im.mode
 
+    def close(self):
+        self.im.close()
+
     def file_is_supported(self):
         if self._supported_heic():
             return True
@@ -129,57 +132,61 @@ class HdrSourceImage:
 
             gain_path = tmpdir / "gain.jpg"
 
-            if self._supported_heic():
-                headroom = self.get_headroom()
-                assert headroom is not None
-                gain_im = self.gain_map()
-                assert gain_im is not None
+            gain_im = None
+            try:
+                if self._supported_heic():
+                    headroom = self.get_headroom()
+                    assert headroom is not None
+                    gain_im = self.gain_map()
+                    assert gain_im is not None
 
-                config = dedent(
-                    f"""\
-                    --maxContentBoost {headroom} {headroom} {headroom}
-                    --minContentBoost 1.0 1.0 1.0
-                    --gamma 1.0 1.0 1.0
-                    --offsetSdr 0.0 0.0 0.0
-                    --offsetHdr 0.0 0.0 0.0
-                    --hdrCapacityMin 1.0
-                    --hdrCapacityMax {headroom}
-                    --useBaseColorSpace 1\
-                    """
+                    config = dedent(
+                        f"""\
+                        --maxContentBoost {headroom} {headroom} {headroom}
+                        --minContentBoost 1.0 1.0 1.0
+                        --gamma 1.0 1.0 1.0
+                        --offsetSdr 0.0 0.0 0.0
+                        --offsetHdr 0.0 0.0 0.0
+                        --hdrCapacityMin 1.0
+                        --hdrCapacityMax {headroom}
+                        --useBaseColorSpace 1\
+                        """
+                    )
+
+                elif gain_map_data := self._supported_jpg():
+                    gain_map_data = gain_map_data.removeprefix("base64:")
+                    gain_map_data = base64.b64decode(gain_map_data)
+                    gain_im = Image.open(io.BytesIO(gain_map_data))
+                    config_file = tmpdir / "out-config.cfg"
+
+                    subprocess.check_call(
+                        [
+                            "ultrahdr_app",
+                            "-m",
+                            ULTRAHDR_APP_MODE_DECODE,
+                            "-j",
+                            self._image_path,
+                            "-f",
+                            config_file,
+                            "-z",
+                            "/dev/null",
+                        ],
+                        cwd=tmpdir,
+                    )
+                    config = config_file.read_text()
+                else:
+                    raise Exception("unsupported")
+
+                gain_im = gain_im.copy()
+                gain_im.thumbnail(
+                    (
+                        max_size // gain_map_resolution_divisor,
+                        max_size // gain_map_resolution_divisor,
+                    )
                 )
-
-            elif gain_map_data := self._supported_jpg():
-                gain_map_data = gain_map_data.removeprefix("base64:")
-                gain_map_data = base64.b64decode(gain_map_data)
-                gain_im = Image.open(io.BytesIO(gain_map_data))
-                config_file = tmpdir / "out-config.cfg"
-
-                subprocess.check_call(
-                    [
-                        "ultrahdr_app",
-                        "-m",
-                        ULTRAHDR_APP_MODE_DECODE,
-                        "-j",
-                        self._image_path,
-                        "-f",
-                        config_file,
-                        "-z",
-                        "/dev/null",
-                    ],
-                    cwd=tmpdir,
-                )
-                config = config_file.read_text()
-            else:
-                raise Exception("unsupported")
-
-            gain_im = gain_im.copy()
-            gain_im.thumbnail(
-                (
-                    max_size // gain_map_resolution_divisor,
-                    max_size // gain_map_resolution_divisor,
-                )
-            )
-            gain_im.save(gain_path, quality=gain_map_quality)
+                gain_im.save(gain_path, quality=gain_map_quality)
+            finally:
+                gain_im.close()
 
             config_path = tmpdir / "metadata.cfg"
             config_path.write_text(config)

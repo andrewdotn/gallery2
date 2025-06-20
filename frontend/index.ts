@@ -142,7 +142,7 @@ function createCaptionEditor(entryId: number, initialCaption: string, htmlCaptio
       onClick: handleEdit
     }, 'Edit');
 
-    return React.createElement('div', { className: 'caption-display' },
+    return React.createElement('div', { className: 'caption' },
       captionDisplay,
       editButton
     );

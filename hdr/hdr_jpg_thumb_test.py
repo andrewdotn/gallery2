@@ -1,5 +1,6 @@
 import io
 import subprocess
+from contextlib import closing
 from pathlib import Path
 
 import numpy as np
@@ -22,12 +23,14 @@ SAMPLE_JPEG_PATH = TEST_DATA_DIR / "sample-hdr.jpg"
 
 @pytest.fixture
 def jpeg_sample_image():
-    return HdrSourceImage(SAMPLE_JPEG_PATH)
+    with closing(HdrSourceImage(SAMPLE_JPEG_PATH)) as im:
+        yield im
 
 
 @pytest.fixture
 def heic_sample_image():
-    return HdrSourceImage(SAMPLE_HEIC_PATH)
+    with closing(HdrSourceImage(SAMPLE_HEIC_PATH)) as im:
+        yield im
 
 
 def test_image_size(heic_sample_image):
@@ -55,14 +58,14 @@ def test_hdr_encode_decode_fraction_heic(heic_sample_image, tmp_path):
     """
     assert heic_sample_image.file_is_supported()
     jpeg_data = heic_sample_image.to_jpeg(max_size=400)
-    jpeg_im = Image.open(io.BytesIO(jpeg_data))
-    assert jpeg_im.width == 400
-    assert jpeg_im.height == 300
+    with Image.open(io.BytesIO(jpeg_data)) as jpeg_im:
+        assert jpeg_im.width == 400
+        assert jpeg_im.height == 300
 
-    jpeg_file = tmp_path / "out.jpeg"
-    jpeg_file.write_bytes(jpeg_data)
+        jpeg_file = tmp_path / "out.jpeg"
+        jpeg_file.write_bytes(jpeg_data)
 
-    rgb = decode_jpeg_to_raw(jpeg_file, tmp_path, jpeg_im.height, jpeg_im.width, 4)
+        rgb = decode_jpeg_to_raw(jpeg_file, tmp_path, jpeg_im.height, jpeg_im.width, 4)
 
     # I guess about 0.19% of RGB values are > 1.0?
     assert np.sum(rgb >= 1.0) / np.size(rgb) * 100 == pytest.approx(0.19, 0.01)
@@ -71,16 +74,16 @@ def test_hdr_encode_decode_fraction_heic(heic_sample_image, tmp_path):
 def test_hdr_decode_fraction2(jpeg_sample_image, tmp_path):
     assert jpeg_sample_image.file_is_supported()
     jpeg_data = jpeg_sample_image.to_jpeg(max_size=400)
-    jpeg_im = Image.open(io.BytesIO(jpeg_data))
-    assert jpeg_im.width == 400
-    assert jpeg_im.height == 178
+    with Image.open(io.BytesIO(jpeg_data)) as jpeg_im:
+        assert jpeg_im.width == 400
+        assert jpeg_im.height == 178
 
-    jpeg_file = tmp_path / "out.jpeg"
-    jpeg_file.write_bytes(jpeg_data)
+        jpeg_file = tmp_path / "out.jpeg"
+        jpeg_file.write_bytes(jpeg_data)
 
-    rgb = decode_jpeg_to_raw(
-        jpeg_file, tmp_path, w=jpeg_im.width, h=jpeg_im.height, c=4
-    )
+        rgb = decode_jpeg_to_raw(
+            jpeg_file, tmp_path, w=jpeg_im.width, h=jpeg_im.height, c=4
+        )
 
     thumb_path = tmp_path / "sample-thumb.jpeg"
     thumb_path.write_bytes(jpeg_data)

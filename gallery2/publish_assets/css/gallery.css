@@ -3,3 +3,8 @@
     color: gray;
     margin-right: 0.5em;
 }
+
+.entry-container .caption blockquote {
+    border-left: 4px solid #ccc;
+    padding-left: 0.5em;
+}

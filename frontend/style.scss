@@ -7,6 +7,12 @@ a:visited:not(.btn) {
 }
 
 
+.entry-container .caption blockquote {
+    border-left: 4px solid #ccc;
+    padding-left: 0.5em;
+}
+
+
 // https://til.simonwillison.net/css/resizing-textarea
 .grow-wrap {
   /* This is the wrapper element around the `<textarea>` */

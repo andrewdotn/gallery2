@@ -5,12 +5,13 @@ This module provides classes for extracting thumbnails from different types of f
 """
 
 import os
+from contextlib import closing
 from pathlib import Path
 from typing import List, Optional
+
 import av
-from PIL import Image, UnidentifiedImageError
+from PIL import Image
 from django.conf import settings
-from django.http import Http404
 
 from gallery2.files import IMAGE_EXTENSIONS, MOVIE_EXTENSIONS
 from gallery2.models import Entry
@@ -79,20 +80,20 @@ class ImageThumbnailExtractor(ThumbnailExtractor):
         return ext in IMAGE_EXTENSIONS
 
     def _extract_thumbnail(self, original_path):
-        im = HdrSourceImage(original_path.absolute())
-        if im.file_is_supported():
-            width, height = im.width, im.height
-            thumbnail_path = self._thumbnail_path_name(".jpg")
-            jpeg_bytes = im.to_jpeg(max_size=self.size)
-            thumbnail_path.write_bytes(jpeg_bytes)
-        else:
-            with Image.open(original_path) as img:
-                thumbnail_path = self._thumbnail_path_name(".webp")
+        with closing(HdrSourceImage(original_path.absolute())) as im:
+            if im.file_is_supported():
+                width, height = im.width, im.height
+                thumbnail_path = self._thumbnail_path_name(".jpg")
+                jpeg_bytes = im.to_jpeg(max_size=self.size)
+                thumbnail_path.write_bytes(jpeg_bytes)
+            else:
+                with Image.open(original_path) as img:
+                    thumbnail_path = self._thumbnail_path_name(".webp")
 
-                # Get original dimensions before creating thumbnail
-                width, height = img.size
-                img.thumbnail((self.size, self.size))
-                img.save(thumbnail_path, "WEBP", quality=90)
+                    # Get original dimensions before creating thumbnail
+                    width, height = img.size
+                    img.thumbnail((self.size, self.size))
+                    img.save(thumbnail_path, "WEBP", quality=90)
 
         self._save_thumb_meta(width=width, height=height, thumbnail_path=thumbnail_path)
 

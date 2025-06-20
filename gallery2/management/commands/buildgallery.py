@@ -174,18 +174,24 @@ class Command(BaseCommand):
         public_publish_dir = media_path / "public"
         os.makedirs(public_publish_dir, exist_ok=True)
         for f in (public_src).glob("*"):
+            if f.name.startswith("."):
+                continue
             shutil.copy2(f, public_publish_dir)
             self.stdout.write(f"  Copied {f.name} to {public_publish_dir}")
 
         js_dir = publish_path / "js"
         os.makedirs(js_dir, exist_ok=True)
         for js_file in (assets_source_path / "js").glob("*.js"):
+            if f.name.startswith("."):
+                continue
             shutil.copy2(js_file, js_dir)
             self.stdout.write(f"  Copied {js_file.name} to {js_dir}")
 
         css_dir = publish_path / "css"
         os.makedirs(css_dir, exist_ok=True)
         for css_file in (assets_source_path / "css").glob("*.css"):
+            if f.name.startswith("."):
+                continue
             shutil.copy2(css_file, css_dir)
             self.stdout.write(f"  Copied {css_file.name} to {css_dir}")
 

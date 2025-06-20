@@ -85,26 +85,26 @@ def test_buildgallery2(db, tmpdir, blue_jpg_file, blue_png_file, one_frame_mov_f
     e1_img = e1_div.find("img", {"src": "media/0000.webp"})
     assert e1_img
     assert e1_img["width"] == "800"
-    e1_thumb = Image.open(publish_dir / "media" / "0000.webp")
-    assert e1_thumb.format == "WEBP"
+    with Image.open(publish_dir / "media" / "0000.webp") as e1_thumb:
+        assert e1_thumb.format == "WEBP"
 
     e2_div = soup.find("div", {"data-entry-id": e_png.id})
     assert e2_div.find("img", {"src": "media/0001.webp"})
-    e2_thumb = Image.open(publish_dir / "media" / "0001.webp")
-    assert e2_thumb.format == "WEBP"
+    with Image.open(publish_dir / "media" / "0001.webp") as e2_thumb:
+        assert e2_thumb.format == "WEBP"
 
     e3_div = soup.find("div", {"data-entry-id": e_heic.id})
     assert e3_div.find("img", {"src": "media/0002.jpg"})
-    e3_thumb = Image.open(publish_dir / "media" / "0002.jpg")
-    assert e3_thumb.format == "MPO"
+    with Image.open(publish_dir / "media" / "0002.jpg") as e3_thumb:
+        assert e3_thumb.format == "MPO"
 
     e4_div = soup.find("div", {"data-entry-id": e_live_photo.id})
     e4_img_tag = e4_div.find("img", {"src": "media/0003.jpg"})
     assert e4_img_tag
-    e4_thumb = Image.open(publish_dir / "media" / "0003.jpg")
-    assert e4_thumb.format == "MPO"
-    assert e4_img_tag["data-video-filename"] == "media/0003.mp4"
-    assert (publish_dir / "media" / "0003.mp4").exists()
+    with Image.open(publish_dir / "media" / "0003.jpg") as e4_thumb:
+        assert e4_thumb.format == "MPO"
+        assert e4_img_tag["data-video-filename"] == "media/0003.mp4"
+        assert (publish_dir / "media" / "0003.mp4").exists()
 
     # I thought about auto-playing videos, but decided to just show thumbnails
     # for them. Click or tap to interact.
