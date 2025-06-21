@@ -7,6 +7,9 @@ DEFAULT_MAX_LENGTH = 255
 class Gallery(models.Model):
     name = models.TextField()
     directory = models.CharField(max_length=DEFAULT_MAX_LENGTH, default=".")
+    og_url = models.TextField(blank=True, null=True)
+    # internet suggests dimensions 1200×630
+    og_image = models.TextField(blank=True, null=True)
 
     def __str__(self):
         return self.name

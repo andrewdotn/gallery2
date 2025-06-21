@@ -7,6 +7,12 @@
     <title>{{ gallery.name }}</title>
     <link href="css/bootstrap.min.css" rel="stylesheet">
     <link href="css/gallery.css" rel="stylesheet">
+    {% if gallery.og_image and gallery.og_url %}
+      <meta property="og:title" content="{{ gallery.name }}" />
+      <meta property="og:type" content="website" />
+      <meta property="og:url" content="{{  gallery.og_url }}" />
+      <meta property="og:image" content="{{ gallery.og_image }}" />
+    {% endif %}
 </head>
 <body>
     <div class="container">
