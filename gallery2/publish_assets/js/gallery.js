@@ -18,6 +18,7 @@ function start() {
             video.autoplay = true;
             video.className = 'img-fluid';
             video.playsInline = true;
+            video.poster = img.src;
 
             const container = this.parentNode;
             container.replaceChild(video, this);
